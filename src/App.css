@@ -1,0 +1,204 @@
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600&display=swap");
+@import "tailwindcss";
+
+@layer utilities {
+.font-title {
+  font-family: "Orbitron", sans-serif;
+  @apply text-zinc-100 font-bold;
+
+  letter-spacing: 0.08em;
+  transform: skewX(-6deg);
+
+  text-shadow:
+    0 1px 0 rgba(255,255,255,0.9),
+    0 0 10px rgba(96,165,250,0.28);
+}
+
+  .font-subtitle {
+    font-family: "Sora", sans-serif;
+  }
+
+  .font-ui {
+    font-family: "Exo 2", serif;
+  }
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+* {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+img,
+a {
+  -webkit-user-drag: none;
+}
+
+button,
+input,
+textarea {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.app-layout {
+  position: relative;
+}
+
+.app-background {
+  position: fixed;
+  inset: 0;
+  background-image: url("./assets/background.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+.app-background-video {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.app-background-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.2);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* ===== Scrollbar (WebKit: Chrome, Edge, etc) ===== */
+::-webkit-scrollbar {
+  width: 17px;
+  height: 17px;
+}
+
+::-webkit-scrollbar-track {
+  background: #09090b; /* zinc-950 */
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a; /* zinc-800 */
+  border-radius: 999px;
+  border: 2px solid #09090b; /* creates padding effect */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(244, 114, 182, 0.35); /* pink-400 */
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: rgba(236, 72, 153, 0.5); /* pink-500 */
+}
+
+input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+
+  width: 16px;
+  height: 16px;
+
+  border-radius: 10px;
+
+  border: 1px solid rgb(63 63 70);
+
+  background: rgba(24, 24, 27, 0.9);
+
+  cursor: pointer;
+
+  position: relative;
+
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 120ms ease;
+}
+
+input[type="checkbox"]:hover {
+  border-color: rgb(236 72 153 / 0.8);
+  background: rgba(39, 39, 42, 0.95);
+}
+
+input[type="checkbox"]:focus {
+  outline: none;
+}
+
+input[type="checkbox"]:active {
+  transform: scale(0.92);
+}
+
+input[type="checkbox"]:checked {
+  background: rgb(236 72 153);
+
+  border-color: rgb(236 72 153);
+
+  box-shadow:
+    0 0 10px rgba(236, 72, 153, 0.22),
+    inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+input[type="checkbox"]:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.drag-preview {
+  left: var(--drag-x);
+  top: var(--drag-y);
+}
+
+.social-icon-mask {
+  width: 1rem;
+  height: 1rem;
+  background-color: rgb(161 161 170); /* zinc-400 */
+  transition:
+    background-color 0.2s ease,
+    opacity 0.2s ease;
+
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+
+  -webkit-mask-position: center;
+  mask-position: center;
+
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.social-icon-mask:hover {
+  background-color: rgb(131 24 67); /* pink-900 */
+}
+
+.social-icon-gamebanana {
+  -webkit-mask-image: url("/icons/gamebanana.png");
+  mask-image: url("/icons/gamebanana.png");
+}

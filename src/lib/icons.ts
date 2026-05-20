@@ -1,0 +1,58 @@
+import type { IconProp } from "@fortawesome/fontawesome-svg-core"
+
+export const Icons: Record<string, IconProp> = {
+  // window
+  minimize: "minus",
+  maximize: ["far", "square"],
+  restore: "clone",
+  close: "xmark",
+  reset: "rotate-left",
+  settings: "gear",
+
+  // ui
+  import: "file-import",
+  save: "floppy-disk",
+  menu: "bars",
+  add: "plus",
+  minus: "minus",
+  delete: "trash",
+  edit: "pen",
+  chevronLeft: "chevron-left",
+  chevronRight: "chevron-right",
+  chevronUp: "chevron-up",
+  chevronDown: "chevron-down",
+  caretLeft: "caret-left",
+  caretRight: "caret-right",
+  caretDown: "caret-down",
+  caretUp: "caret-up",
+  anglesLeft: "angles-left",
+  anglesRight: "angles-right",
+  anglesDown: "angles-down",
+  anglesUp: "angles-up",
+  check: "check",
+  play: "play",
+  mugHot: "mug-hot",
+
+  github: ["fab", "github"],
+  
+  hp: "heart",
+  stamina: "bolt",
+  spirit: "brain",
+  speed: "gauge-high",
+  immunity: "shield-halved",
+  exptrust: "medal",
+  battledamage: "skull",
+  yieldluck: "dice",
+
+  all: "layer-group",
+  ammo: "bullseye",
+  consumable: "flask",
+  currency: "coins",
+  equipment: "shield-halved",
+  material: "cube",
+  misc: "box",
+  quest: "scroll",
+  unknown: "circle-question",
+  circleQuestion: "circle-question",
+  layerGroup: "layer-group",
+}

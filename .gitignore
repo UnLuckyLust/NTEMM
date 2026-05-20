@@ -1,0 +1,101 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies
+node_modules
+
+# Frontend builds
+dist
+dist-ssr
+build
+
+# Tauri / Rust builds
+src-tauri/target/
+
+# Portable / release artifacts
+*.msi
+*.msix
+*.appx
+*.appxbundle
+*.dmg
+*.deb
+*.rpm
+*.AppImage
+*.exe
+*.zip
+*.7z
+*.rar
+*.tar
+*.gz
+*.sig
+
+# Keep bundled runtime tools
+!src-tauri/resources/binaries/7z.exe
+!src-tauri/resources/binaries/7z.dll
+!src-tauri/resources/loader/**/*.dll
+!src-tauri/resources/loader/**/*.asi
+
+# Tauri updater signing keys
+*.key
+*.key.pub
+*.pem
+*.pem.pub
+
+# Local env/config
+*.local
+.env
+.env.local
+.env.*.local
+*.ps1
+
+# Runtime/generated files
+*.tmp
+*.temp
+*.cache
+*.bak
+*.old
+
+# Generated icons
+icon_*.ico
+
+# Crash dumps
+*.dmp
+
+# Rust
+Cargo.lock
+
+# VSCode / JetBrains / Windows
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.user
+*.userosscache
+
+# OS generated
+ehthumbs.db
+
+# Python
+__pycache__/
+*.pyc
+
+# Release automation temp
+release/
+portable/
+artifacts/
+
+# Keep updater metadata tracked
+!public/changelog/latest.json
