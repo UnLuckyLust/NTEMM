@@ -1,6 +1,12 @@
 <h1 align="center">NTE Mod Manager</h1>
 
 <p align="center">
+  <a href="https://www.virustotal.com/gui/file/3d9442cf4efe1dea9554c226cb757d7b843e918f23528293ac876282826b8060">
+    <img src="https://img.shields.io/badge/VirusTotal-Scan-blue?style=for-the-badge&logo=virustotal" />
+  </a>
+</p>
+
+<p align="center">
   A modern lightweight mod manager for <b>Neverness to Everness</b>.
 </p>
 
