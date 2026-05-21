@@ -75,7 +75,7 @@ The manager automatically organizes supported files into the correct game locati
 > Since the application is currently unsigned, Windows Defender or SmartScreen may display a warning when launching the app for the first time, This is normal for many indie and open-source applications.
 
 > [!WARNING]
- does not create mods or modify game code.  
+ The application does not create mods or modify game code.  
 > The application is only used to organize, install and manage existing community-made mods.
 
 ## Contributing
