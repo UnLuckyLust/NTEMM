@@ -36,7 +36,7 @@ The app is built with **Tauri** for fast startup times, low memory usage and a l
 
 ### Installer Version
 
-1. Download the installer release
+1. Download the installer [release](https://github.com/UnLuckyLust/NTEMM/releases/latest)
 2. Run the setup file
 3. Follow the installation steps
 4. Launch `NTEMM.exe`
@@ -47,7 +47,7 @@ Includes automatic shortcuts and uninstall support.
 
 ### Portable Version
 
-1. Download the portable ZIP release
+1. Download the portable ZIP [release](https://github.com/UnLuckyLust/NTEMM/releases/latest)
 2. Extract it anywhere you want
 3. Launch `NTEMM.exe`
 4. Select your game folder and start managing mods
