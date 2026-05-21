@@ -7,7 +7,7 @@ export function HudScaleCard() {
   const [engineIniPath, setEngineIniPath] = useState("")
   const [engineIniCheck, setEngineIniCheck] = useState<EngineIniCheck | null>(null)
   const [uiScale, setUiScale] = useState(1.0)
-  const [uiScaleStatus, setUiScaleStatus] = useState("")
+  // const [uiScaleStatus, setUiScaleStatus] = useState("")
   const [hasLoadedEngineIni, setHasLoadedEngineIni] = useState(false)
 
     useEffect(() => {
@@ -116,7 +116,7 @@ export function HudScaleCard() {
 
     async function resetSavedEngineIni() {
     localStorage.removeItem("engineIniPath")
-    setUiScaleStatus("Checking Engine.ini...")
+    // setUiScaleStatus("Checking Engine.ini...")
 
     try {
         const result = await invoke<EngineIniCheck>("auto_detect_engine_ini")
@@ -131,10 +131,11 @@ export function HudScaleCard() {
             setUiScale(result.applicationScale)
         }
 
-        setUiScaleStatus("Engine.ini auto-detected")
-        } else {
-        setUiScaleStatus("Engine.ini was not auto-detected")
-        }
+        // setUiScaleStatus("Engine.ini auto-detected")
+        } 
+        // else {
+        // setUiScaleStatus("Engine.ini was not auto-detected")
+        // }
     } catch (error) {
         console.error(error)
 
@@ -145,7 +146,7 @@ export function HudScaleCard() {
         applicationScale: null,
         message: "Failed to auto-detect Engine.ini",
         })
-        setUiScaleStatus("Failed to auto-detect Engine.ini")
+        // setUiScaleStatus("Failed to auto-detect Engine.ini")
     }
     }
 
@@ -153,7 +154,7 @@ export function HudScaleCard() {
     if (!engineIniCheck?.valid || !engineIniPath.trim()) return
 
     try {
-      setUiScaleStatus("Saving HUD scale...")
+      // setUiScaleStatus("Saving HUD scale...")
 
       const result = await invoke<EngineIniCheck>("set_ui_scale", {
         path: engineIniPath.trim(),
@@ -162,10 +163,10 @@ export function HudScaleCard() {
 
       setEngineIniCheck(result)
       localStorage.setItem("engineIniPath", result.path)
-      setUiScaleStatus("HUD scale saved")
+      // setUiScaleStatus("HUD scale saved")
     } catch (error) {
       console.error(error)
-      setUiScaleStatus("Failed to save HUD scale")
+      // setUiScaleStatus("Failed to save HUD scale")
     }
   }
 

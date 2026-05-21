@@ -11,7 +11,7 @@ type AnticensorStatus = {
 
 export function AnticensorCard({ loaderInstalled }: { loaderInstalled: boolean }) {
   const [installed, setInstalled] = useState(false)
-  const [status, setStatus] = useState("Checking...")
+  // const [status, setStatus] = useState("Checking...")
   const [isBusy, setIsBusy] = useState(false)
 
   async function refreshAnticensor() {
@@ -19,7 +19,7 @@ export function AnticensorCard({ loaderInstalled }: { loaderInstalled: boolean }
 
     if (!gameFolder) {
       setInstalled(false)
-      setStatus("Game folder not configured")
+      // setStatus("Game folder not configured")
       return
     }
 
@@ -28,7 +28,7 @@ export function AnticensorCard({ loaderInstalled }: { loaderInstalled: boolean }
     })
 
     setInstalled(result.installed)
-    setStatus(result.message)
+    // setStatus(result.message)
   }
 
   useEffect(() => {
@@ -48,10 +48,10 @@ export function AnticensorCard({ loaderInstalled }: { loaderInstalled: boolean }
       })
 
       setInstalled(result.installed)
-      setStatus(result.message)
+      // setStatus(result.message)
     } catch (error) {
       console.error(error)
-      setStatus("Failed to update Anticensor")
+      // setStatus("Failed to update Anticensor")
     } finally {
       setIsBusy(false)
     }

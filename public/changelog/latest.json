@@ -1,0 +1,11 @@
+{
+  "version": "1.0.0",
+  "notes": "NTEMM v1.0.0\n\n- Initial NTEMM release.\n- Added Neverness to Everness mod importing and management.\n- Added Global and CN game detection logic.\n- Added loader files installation and management.\n- Added integrated in-game HUD/UI scale control.\n- Added bundled Anticensor mod support.",
+  "pub_date": "2026-05-21T00:02:31.988Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUeDVHeGIxQktqSUY5T0RCN3lSWnczZDExdlpOVWJSdFpFc2RDZzJKUVhDZjNaUCtZRHJsbGtkNitod3ZycWJ5djlUZFdNNXpCWFJQbnVaRXY1dTVNREU0bGIwV3VmU1F3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5MzIxNzUwCWZpbGU6TlRFTU1fMS4wLjBfeDY0LXNldHVwLmV4ZQpqSG4wTjJKQ3IySzFNNlBFU1lMR05LaUQvai9XNVlpbG4rZ3IxWkFleDA5TDJQc2hCcVc3bFEvNzE2ekdXU2M3dlJoZ1p5M0tzVmE3cFVYK2hDWWhCZz09Cg==",
+      "url": "https://github.com/UnLuckyLust/NTEMM/releases/download/v1.0.0/NTEMM_1.0.0_x64-setup.exe"
+    }
+  }
+}
