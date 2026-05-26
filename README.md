@@ -29,7 +29,7 @@ The app is built with **Tauri** for fast startup times, low memory usage and a l
 - Built-in loader installation and management
 - Optional bundled Anticensor mod toggle
 - Integrated HUD/UI scale editor with automatic `Engine.ini` detection
-- Supports both Global and CN game versions
+- Supports Global, CN and TW game versions
 - Modern lightweight desktop UI built with Tauri
 
 ## Installation

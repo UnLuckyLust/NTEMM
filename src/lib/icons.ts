@@ -32,6 +32,8 @@ export const Icons: Record<string, IconProp> = {
   check: "check",
   play: "play",
   mugHot: "mug-hot",
+  file: "file-circle-plus",
+  folder: "folder-plus",
 
   github: ["fab", "github"],
   

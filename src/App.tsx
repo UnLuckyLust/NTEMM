@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react"
 import { getVersion } from "@tauri-apps/api/app"
 import { invoke } from "@tauri-apps/api/core"
-import { message } from "@tauri-apps/plugin-dialog"
 import { relaunch } from "@tauri-apps/plugin-process"
 import { check, type Update } from "@tauri-apps/plugin-updater"
 import AppLayout from "@/layout/AppLayout"
 import Settings from "@/pages/Settings"
 import Home from "@/pages/Home"
 import { CHANGELOG_BY_VERSION } from "@/data/changelog"
+import { dialog } from "@/lib/dialog";
 
 export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -106,13 +106,11 @@ export default function App() {
       const savedPath = localStorage.getItem("gameFolder")
       if (!savedPath) {
         warnedRef.current = true
-        await message(
-          "Please select your Neverness to Everness game folder in Settings before using NTEMM",
-          {
-            title: "Game Folder Required",
-            kind: "warning",
-          },
-        )
+        await dialog({
+          title: "Game Folder Required",
+          message: "Please select your Neverness to Everness game folder in Settings before using NTEMM",
+          kind: "warning",
+        });
         setIsSettingsOpen(true)
         return
       }
@@ -123,22 +121,21 @@ export default function App() {
         })
         if (!result.valid) {
           warnedRef.current = true
-          await message(
-            "The saved game folder is no longer valid. Please reselect your Neverness to Everness install folder",
-            {
-              title: "Invalid Game Folder",
-              kind: "warning",
-            },
-          )
+          await dialog({
+            title: "Invalid Game Folder",
+            message: "The saved game folder is no longer valid. Please reselect your Neverness to Everness install folder",
+            kind: "warning",
+          });
 
           setIsSettingsOpen(true)
         }
       } catch {
         warnedRef.current = true
-        await message("Failed to validate the saved game folder", {
+        await dialog({
           title: "Folder Validation Failed",
+          message: "Failed to validate the saved game folder",
           kind: "error",
-        })
+        });
 
         setIsSettingsOpen(true)
       }
@@ -200,18 +197,20 @@ export default function App() {
 
       {isChangelogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl">
+          <div className="flex max-h-[calc(100vh-10rem)] w-full max-w-md flex-col rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl">
             <h2 className="text-lg font-bold text-pink-500">What&apos;s New
               <span className="text-xs text-zinc-400"> in </span>
               NTEMM
               <span className="text-xs text-zinc-400"> v{changelogVersion}</span>
             </h2>
 
-            <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-zinc-300">
-              {changelogItems.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
+            <div className="mt-4 min-h-0 overflow-y-auto pr-2">
+              <ul className="list-disc space-y-2 pl-5 text-sm text-zinc-300">
+                {changelogItems.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
 
             <div className="mt-5 flex justify-end">
               <button

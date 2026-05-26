@@ -49,6 +49,21 @@ export type ModsView = "pak" | "asi"
 export type ModUiStatus = "Enabled" | "Disabled" | "Needs Fix" | "Pending Enable" | "Pending Disable" | "Pending Move"
 export type CategoryMoveDirection = "up" | "down"
 
+export type GameFolderCheck = {
+  valid: boolean
+  path: string
+  gameVersion: "global" | "cn" | "tw" | "unknown"
+  root_launcher_found: boolean
+  nteglobal_folder_found: boolean
+  nteglobal_game_found: boolean
+  nteglobal_launcher_found: boolean
+  nteglobal_update_found: boolean
+  ht_game_found: boolean
+  global_ucas_found: boolean
+  global_utoc_found: boolean
+  message: string
+}
+
 export type LoaderFilesCheck = {
   valid: boolean
   loaderDir: string

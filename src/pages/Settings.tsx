@@ -5,38 +5,8 @@ import { check } from "@tauri-apps/plugin-updater"
 import { relaunch } from "@tauri-apps/plugin-process"
 import AppIcon from "@/components/ui/AppIcon"
 import { Icons } from "@/lib/icons"
-
-type GameFolderCheck = {
-  valid: boolean
-  path: string
-  gameVersion: "global" | "cn" | "unknown"
-
-  root_launcher_found: boolean
-
-  nteglobal_folder_found: boolean
-  nteglobal_game_found: boolean
-  nteglobal_launcher_found: boolean
-  nteglobal_update_found: boolean
-
-  ht_game_found: boolean
-
-  global_ucas_found: boolean
-  global_utoc_found: boolean
-
-  message: string
-}
-
-type LoaderFilesCheck = {
-  valid: boolean
-  loaderDir: string
-
-  asiFound: boolean
-  cutilsFound: boolean
-  proxyDllFound: boolean
-
-  missingFiles: string[]
-  message: string
-}
+import { GameFolderCheck, LoaderFilesCheck } from "@/types/modManager"
+import { dialog } from "@/lib/dialog"
 
 interface SettingsProps {
   onBackHome: () => void
@@ -150,7 +120,14 @@ export default function Settings({ onBackHome }: SettingsProps) {
       const update = await check()
 
       if (!update) {
-        setUpdateStatus("NTEMM is already up to date")
+        setUpdateStatus("")
+        await dialog({
+          title: "Update Check",
+          message: "NTEMM is already up to date",
+          kind: "info",
+          timer: 10,
+          timerTo: "yes"
+        });
         return
       }
 
@@ -158,39 +135,55 @@ export default function Settings({ onBackHome }: SettingsProps) {
 
       await update.downloadAndInstall()
 
-      setUpdateStatus("Update installed. Restarting...")
+      setUpdateStatus("")
+      await dialog({
+        title: "Update Check",
+        message: "Update installed, Restarting the app...",
+        kind: "success",
+      });
       await relaunch()
     } catch (error) {
       console.error(error)
-      setUpdateStatus("Update check failed")
+      setUpdateStatus("")
+      await dialog({
+        title: "Update Check",
+        message: "Update check failed",
+        kind: "error",
+      });
     } finally {
       setIsCheckingUpdate(false)
     }
   }
 
   return (
-    <div className="space-y-2 p-6">
-      <section className="rounded-xl bg-zinc-900 p-1 w-max">
-        <button
-          onClick={onBackHome}
-          className="rounded-lg text-sm font-semibold g-zinc-800 text-zinc-400 hover:bg-zinc-700 p-2"
-        >
-          <AppIcon icon={Icons.anglesLeft} className="text-[15px] mr-2" />
-          Back to Home
-        </button>
-      </section>
-      
-      <section className="space-y-3 rounded-xl bg-zinc-900 p-4">
+    <div className="flex flex-col space-y-2 p-6 w-full items-center">
+      <div className="w-full max-w-400">
+        <div className="relative flex items-center">
+          <section className="rounded-xl bg-zinc-900 p-1">
+            <button
+              onClick={onBackHome}
+              className="rounded-lg p-2 text-sm font-semibold text-zinc-400 hover:bg-zinc-700"
+            >
+              <AppIcon icon={Icons.anglesLeft} className="mr-2 text-[15px]" />
+              Back to Home
+            </button>
+          </section>
+
+          {updateStatus && (
+            <section className="absolute left-1/2 -translate-x-1/2 rounded-xl bg-zinc-900 px-4 py-2">
+              <div className="text-sm text-zinc-400">{updateStatus}</div>
+            </section>
+          )}
+        </div>
+      </div>
+
+      <section className="space-y-3 rounded-xl bg-zinc-900 p-4 w-full max-w-400">
         <div className="flex items-center justify-between gap-4">
           <div>
             <div className="font-semibold">App updates</div>
             <div className="text-sm text-zinc-500">
               Check for a new NTEMM version and install it automatically
             </div>
-
-            {updateStatus && (
-              <div className="mt-2 text-sm text-zinc-400">{updateStatus}</div>
-            )}
           </div>
 
           <div className="flex gap-2">
@@ -216,7 +209,7 @@ export default function Settings({ onBackHome }: SettingsProps) {
         </div>
       </section>
 
-      <section className="space-y-3 rounded-xl bg-zinc-900 p-4">
+      <section className="space-y-3 rounded-xl bg-zinc-900 p-4 w-full max-w-400">
         <label className="font-semibold" htmlFor="game-folder">
           Game Folder
         </label>
@@ -279,7 +272,7 @@ export default function Settings({ onBackHome }: SettingsProps) {
         </div>
       </section>
 
-      <section className="space-y-3 rounded-xl bg-zinc-900 p-4">
+      <section className="space-y-3 rounded-xl bg-zinc-900 p-4 w-full max-w-400">
         <div className="flex items-center justify-between gap-4">
           <div>
             <div className="font-semibold">Close app when launching game</div>
@@ -311,7 +304,7 @@ export default function Settings({ onBackHome }: SettingsProps) {
         </div>
       </section>
 
-      <section className="space-y-3 rounded-xl bg-zinc-900 p-4">
+      <section className="space-y-3 rounded-xl bg-zinc-900 p-4 w-full max-w-400">
         <div className="flex items-center justify-between gap-4">
           <div>
             <div className="font-semibold">App background</div>

@@ -11,18 +11,18 @@ export default defineConfig(async () => ({
   plugins: [react(), tailwindcss()],
 
   resolve: {
-  alias: {
-    "@": path.resolve(__dirname, "./src"),
-    "@components": path.resolve(__dirname, "./src/components"),
-    "@lib": path.resolve(__dirname, "./src/lib"),
-    "@pages": path.resolve(__dirname, "./src/pages"),
-    "@types": path.resolve(__dirname, "./src/types"),
-    "@assets": path.resolve(__dirname, "./src/assets"),
-    "@hooks": path.resolve(__dirname, "./src/hooks"),
-    "@helpers": path.resolve(__dirname, "./src/helpers"),
-    "@data": path.resolve(__dirname, "./src/data"),
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      "@components": path.resolve(__dirname, "./src/components"),
+      "@lib": path.resolve(__dirname, "./src/lib"),
+      "@pages": path.resolve(__dirname, "./src/pages"),
+      "@types": path.resolve(__dirname, "./src/types"),
+      "@assets": path.resolve(__dirname, "./src/assets"),
+      "@hooks": path.resolve(__dirname, "./src/hooks"),
+      "@helpers": path.resolve(__dirname, "./src/helpers"),
+      "@data": path.resolve(__dirname, "./src/data"),
+    },
   },
-},
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

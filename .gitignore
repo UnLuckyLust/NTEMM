@@ -53,6 +53,7 @@ src-tauri/target/
 .env.local
 .env.*.local
 *.ps1
+*.bat
 
 # Runtime/generated files
 *.tmp

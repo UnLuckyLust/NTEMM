@@ -1,172 +1,94 @@
 import { invoke } from "@tauri-apps/api/core"
-import { open } from "@tauri-apps/plugin-dialog"
 import { useEffect, useState } from "react"
 import type { EngineIniCheck } from "@/types/engineIni"
 
-export function HudScaleCard() {
+interface HudScaleCardProps {
+  gamePath: string
+}
+
+export function HudScaleCard({ gamePath }: HudScaleCardProps) {
   const [engineIniPath, setEngineIniPath] = useState("")
   const [engineIniCheck, setEngineIniCheck] = useState<EngineIniCheck | null>(null)
   const [uiScale, setUiScale] = useState(1.0)
-  // const [uiScaleStatus, setUiScaleStatus] = useState("")
   const [hasLoadedEngineIni, setHasLoadedEngineIni] = useState(false)
 
-    useEffect(() => {
-        const savedEngineIniPath = localStorage.getItem("engineIniPath")
+  useEffect(() => {
+    refreshEngineIni()
+  }, [gamePath])
 
-        async function loadEngineIni() {
-        const result = savedEngineIniPath
-            ? await invoke<EngineIniCheck>("check_engine_ini", {
-                path: savedEngineIniPath,
-            })
-            : await invoke<EngineIniCheck>("auto_detect_engine_ini")
+  useEffect(() => {
+    if (!hasLoadedEngineIni || !engineIniCheck?.valid || !gamePath.trim()) return
 
-        setEngineIniPath(result.path)
-        setEngineIniCheck(result)
+    const timeout = window.setTimeout(() => {
+      applyUiScale(uiScale)
+    }, 400)
 
-        if (result.valid) {
-            localStorage.setItem("engineIniPath", result.path)
+    return () => window.clearTimeout(timeout)
+  }, [uiScale, hasLoadedEngineIni, engineIniCheck?.valid, gamePath])
 
-            if (typeof result.applicationScale === "number") {
-            setUiScale(result.applicationScale)
-            }
-        }
+  async function refreshEngineIni() {
+    setHasLoadedEngineIni(false)
 
-        setHasLoadedEngineIni(true)
-        }
-
-        loadEngineIni().catch((error) => {
-        console.error(error)
-
-        setEngineIniCheck({
-            valid: false,
-            path: savedEngineIniPath ?? "",
-            applicationScale: null,
-            message: "Failed to check Engine.ini",
-        })
-
-        setHasLoadedEngineIni(true)
-        })
-    }, [])
-
-    useEffect(() => {
-        if (!hasLoadedEngineIni || !engineIniCheck?.valid) return
-
-        const timeout = window.setTimeout(() => {
-        applyUiScale(uiScale)
-        }, 400)
-
-        return () => window.clearTimeout(timeout)
-    }, [uiScale, hasLoadedEngineIni, engineIniCheck?.valid])
-
-    async function browseEngineIni() {
-        const selected = await open({
-            directory: false,
-            multiple: false,
-            title: "Select Engine.ini",
-            filters: [{ name: "Engine.ini", extensions: ["ini"] }],
-        })
-
-        if (typeof selected !== "string") return
-
-        if (!selected.toLowerCase().endsWith("\\engine.ini")) {
-            setEngineIniPath(selected)
-            setEngineIniCheck({
-            valid: false,
-            path: selected,
-            applicationScale: null,
-            message: "Invalid file. Select the game's Engine.ini file only.",
-            })
-            return
-        }
-
-        setEngineIniPath(selected)
-
-        const result = await invoke<EngineIniCheck>("check_engine_ini", {
-            path: selected,
-        })
-
-        setEngineIniCheck(result)
-
-        if (result.valid) {
-        localStorage.setItem("engineIniPath", result.path)
-
-        if (typeof result.applicationScale === "number") {
-            setUiScale(result.applicationScale)
-        }
-        }
-    }
-
-    async function checkTypedEngineIniPath() {
-        if (!engineIniPath.trim()) return
-
-        const result = await invoke<EngineIniCheck>("check_engine_ini", {
-        path: engineIniPath.trim(),
-        })
-
-        setEngineIniCheck(result)
-
-        if (result.valid) {
-        localStorage.setItem("engineIniPath", result.path)
-
-        if (typeof result.applicationScale === "number") {
-            setUiScale(result.applicationScale)
-        }
-        }
-    }
-
-    async function resetSavedEngineIni() {
-    localStorage.removeItem("engineIniPath")
-    // setUiScaleStatus("Checking Engine.ini...")
-
-    try {
-        const result = await invoke<EngineIniCheck>("auto_detect_engine_ini")
-
-        setEngineIniPath(result.path)
-        setEngineIniCheck(result)
-
-        if (result.valid) {
-        localStorage.setItem("engineIniPath", result.path)
-
-        if (typeof result.applicationScale === "number") {
-            setUiScale(result.applicationScale)
-        }
-
-        // setUiScaleStatus("Engine.ini auto-detected")
-        } 
-        // else {
-        // setUiScaleStatus("Engine.ini was not auto-detected")
-        // }
-    } catch (error) {
-        console.error(error)
-
-        setEngineIniPath("")
-        setEngineIniCheck({
+    if (!gamePath.trim()) {
+      setEngineIniPath("")
+      setEngineIniCheck({
         valid: false,
         path: "",
         applicationScale: null,
-        message: "Failed to auto-detect Engine.ini",
-        })
-        // setUiScaleStatus("Failed to auto-detect Engine.ini")
+        message: "Game folder was not detected",
+      })
+      setHasLoadedEngineIni(true)
+      return
     }
-    }
-
-  async function applyUiScale(scale: number) {
-    if (!engineIniCheck?.valid || !engineIniPath.trim()) return
 
     try {
-      // setUiScaleStatus("Saving HUD scale...")
+      const result = await invoke<EngineIniCheck>("detect_engine_ini_for_game", {
+        gamePath,
+      })
 
+      setEngineIniPath(result.path)
+      setEngineIniCheck(result)
+
+      if (result.valid && typeof result.applicationScale === "number") {
+        setUiScale(result.applicationScale)
+      }
+
+      setHasLoadedEngineIni(true)
+    } catch (error) {
+      console.error(error)
+
+      setEngineIniPath("")
+      setEngineIniCheck({
+        valid: false,
+        path: "",
+        applicationScale: null,
+        message: "Failed to detect Engine.ini",
+      })
+
+      setHasLoadedEngineIni(true)
+    }
+  }
+
+  async function applyUiScale(scale: number) {
+    if (!engineIniCheck?.valid || !gamePath.trim()) return
+
+    try {
       const result = await invoke<EngineIniCheck>("set_ui_scale", {
-        path: engineIniPath.trim(),
+        gamePath,
         scale,
       })
 
+      setEngineIniPath(result.path)
       setEngineIniCheck(result)
-      localStorage.setItem("engineIniPath", result.path)
-      // setUiScaleStatus("HUD scale saved")
     } catch (error) {
       console.error(error)
-      // setUiScaleStatus("Failed to save HUD scale")
+
+      setEngineIniCheck((current) => ({
+        valid: false,
+        path: current?.path ?? engineIniPath,
+        applicationScale: current?.applicationScale ?? null,
+        message: "Failed to save HUD scale",
+      }))
     }
   }
 
@@ -176,12 +98,12 @@ export function HudScaleCard() {
         <div>
           <div className="text-sm font-semibold text-zinc-200">HUD Scale</div>
           <div className="text-xs text-zinc-500">
-            Edit Engine.ini to control the in-game UI scale
+            Edits Engine.ini for the selected game version
           </div>
         </div>
 
         <div
-          className={`rounded-lg border px-3 py-2 text-xs font-semibold ${
+          className={`rounded-lg border px-3 py-2 text-xs font-semibold min-w-max ${
             engineIniCheck?.valid
               ? "border-green-700 bg-green-950/40 text-green-200"
               : "border-red-700 bg-red-950/40 text-red-200"
@@ -189,39 +111,6 @@ export function HudScaleCard() {
         >
           {engineIniCheck?.message ?? "Checking Engine.ini..."}
         </div>
-      </div>
-
-      <div className="mb-3 flex gap-2">
-        <input
-          value={engineIniPath}
-          onChange={(e) => setEngineIniPath(e.target.value)}
-          onBlur={checkTypedEngineIniPath}
-          className={`min-w-0 flex-1 rounded-lg border bg-zinc-800 px-3 py-2 text-sm outline-none focus:border-pink-500 ${
-            engineIniCheck?.valid === false
-              ? "border-red-700 text-red-300"
-              : "border-zinc-800 text-zinc-500"
-          }`}
-          placeholder="Select Engine.ini"
-        />
-
-          <div className="flex rounded-lg bg-zinc-800 p-1">
-            <button
-              onClick={browseEngineIni}
-              className="rounded-lg px-4 text-sm font-semibold g-zinc-800 text-zinc-400 hover:bg-zinc-700"
-            >
-              Browse
-            </button>
-          </div>
-
-
-          <div className="flex rounded-lg bg-zinc-800 p-1">
-            <button
-              onClick={resetSavedEngineIni}
-              className="rounded-lg px-4 text-sm font-semibold g-zinc-800 text-zinc-400 hover:bg-zinc-700"
-            >
-              Reset
-            </button>
-          </div>
       </div>
 
       <div className="flex items-center gap-4">

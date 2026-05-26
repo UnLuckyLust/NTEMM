@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ask, message, open } from "@tauri-apps/plugin-dialog"
+import { open } from "@tauri-apps/plugin-dialog"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { invoke } from "@tauri-apps/api/core"
+import { loaderVersions } from "@lib/config"
+import { dialog } from "@/lib/dialog";
 import type {
   CategoryMoveDirection,
   ImportedMod,
@@ -10,6 +12,7 @@ import type {
   ModInstallStatus,
   ModsView,
   LoaderFilesCheck,
+  GameFolderCheck,
 } from "@/types/modManager"
 import {
   createPakCategory,
@@ -47,6 +50,7 @@ import {
   importModPaths,
   launchGameCommand,
   listImportedMods,
+  refreshAutoModIcons,
   removeImportedModCommand,
   validateModPaths,
 } from "@/helpers/tauriModCommands"
@@ -77,11 +81,25 @@ export function useModManager() {
   const [collapsedUncategorized, setCollapsedUncategorized] = useState(false)
   const [collapsedPakCategories, setCollapsedPakCategories] = useState<Record<string, boolean>>({})
   const [loaderCheck, setLoaderCheck] = useState<LoaderFilesCheck | null>(null)
+  const [hideUidInstalled, setHideUidInstalled] = useState(false)
+  const [hideUidSelected, setHideUidSelected] = useState(false)
+  const [hidePingInstalled, setHidePingInstalled] = useState(false)
+  const [hidePingSelected, setHidePingSelected] = useState(false)
+  const [anticensorInstalled, setAnticensorInstalled] = useState(false)
+  const [anticensorSelected, setAnticensorSelected] = useState(false)
+  const [isRunningAsAdmin, setIsRunningAsAdmin] = useState(false)
+  const [gameVersion, setGameVersion] = useState<string | null>(null)
 
   const importingRef = useRef(false)
   const validatingDropRef = useRef(false)
   const lastDropRef = useRef(0)
   const internalDragRef = useRef(false)
+  const modStatusesInitializedRef = useRef(false)
+  const bundledInstalledRef = useRef({
+    hideUidInstalled: false,
+    hidePingInstalled: false,
+    anticensorInstalled: false,
+  })
 
   const visibleMods = useMemo(
     () => (modsView === "pak" ? importedMods.filter(isPakMod) : importedMods.filter(isAsiMod)),
@@ -110,22 +128,113 @@ export function useModManager() {
       .map((mod) => mod.name)
 
     setActiveMods(active)
-    setSelectedMods(active)
+
+    setSelectedMods((currentSelected) => {
+      if (!modStatusesInitializedRef.current) {
+        modStatusesInitializedRef.current = true
+        return active
+      }
+
+      const hasPendingSelection =
+        currentSelected.length !== activeMods.length ||
+        currentSelected.some((modName) => !activeMods.includes(modName))
+
+      return hasPendingSelection ? currentSelected : active
+    })
+  }, [activeMods])
+
+  const refreshBundledMods = useCallback(async () => {
+    const gameFolder = getGameFolder()
+
+    if (!gameFolder) {
+      setHideUidInstalled(false)
+      setHideUidSelected(false)
+
+      setHidePingInstalled(false)
+      setHidePingSelected(false)
+
+      setAnticensorInstalled(false)
+      setAnticensorSelected(false)
+      return
+    }
+
+    const uiStatus = await invoke<{
+      hideUidInstalled: boolean
+      hidePingInstalled: boolean
+    }>("check_ui_mods", {
+      path: gameFolder,
+    })
+
+    const previousInstalled = bundledInstalledRef.current
+
+    setHideUidInstalled(uiStatus.hideUidInstalled)
+    setHideUidSelected((currentSelected) =>
+      currentSelected !== previousInstalled.hideUidInstalled
+        ? currentSelected
+        : uiStatus.hideUidInstalled,
+    )
+
+    setHidePingInstalled(uiStatus.hidePingInstalled)
+    setHidePingSelected((currentSelected) =>
+      currentSelected !== previousInstalled.hidePingInstalled
+        ? currentSelected
+        : uiStatus.hidePingInstalled,
+    )
+
+    const anticensorStatus = await invoke<{ installed: boolean }>("check_anticensor_mod", {
+      path: gameFolder,
+    })
+
+    setAnticensorInstalled(anticensorStatus.installed)
+    setAnticensorSelected((currentSelected) =>
+      currentSelected !== previousInstalled.anticensorInstalled
+        ? currentSelected
+        : anticensorStatus.installed,
+    )
   }, [])
 
-  const refreshDetectedState = useCallback(() => {
-    void loadImportedMods()
+  const refreshGameVersion = useCallback(async () => {
+    const gameFolder = getGameFolder()
+
+    if (!gameFolder) {
+      setGameVersion(null)
+      return
+    }
+
+    try {
+      const result = await invoke<GameFolderCheck>("check_game_folder", {
+        path: gameFolder,
+      })
+
+      setGameVersion(result.valid ? result.gameVersion : null)
+    } catch {
+      setGameVersion(null)
+    }
+  }, [])
+
+  const refreshDetectedState = useCallback(async () => {
+    void refreshGameVersion()
     void loadModStatuses()
-  }, [loadImportedMods, loadModStatuses])
+    void refreshBundledMods()
+
+    try {
+      await refreshAutoModIcons()
+    } catch (err) {
+      console.warn("Auto icon refresh failed:", err)
+    }
+
+    await loadImportedMods()
+  }, [refreshGameVersion, loadImportedMods, loadModStatuses, refreshBundledMods])
 
   const launchGame = useCallback(async () => {
     const gameFolder = getGameFolder()
 
     if (!gameFolder) {
-      await message("Please configure the game folder in Settings first", {
+      await dialog({
         title: "Game Folder Missing",
+        message: "Please configure the game folder in Settings first",
         kind: "warning",
-      })
+      });
       return
     }
 
@@ -136,10 +245,11 @@ export function useModManager() {
         await getCurrentWindow().close()
       }
     } catch (err) {
-      await message(String(err), {
+      await dialog({
         title: "Launch Failed",
+        message: String(err),
         kind: "error",
-      })
+      });
     }
   }, [])
 
@@ -164,6 +274,13 @@ export function useModManager() {
     [activeMods, appliedPakInstallLocationByMod, modStatuses, pakCategories, selectedMods],
   )
 
+  const getBundledModStatus = useCallback((installed: boolean, selected: boolean) => {
+    if (installed && selected) return "Enabled"
+    if (!installed && !selected) return "Disabled"
+    if (!installed && selected) return "Pending Enable"
+    return "Pending Disable"
+  }, [])
+
   const hasPendingChanges = useCallback(
     () =>
       hasPendingModChanges({
@@ -172,40 +289,52 @@ export function useModManager() {
         categoryNameErrors,
         pakCategories,
         appliedPakInstallLocationByMod,
-      }),
-    [activeMods, appliedPakInstallLocationByMod, categoryNameErrors, pakCategories, selectedMods],
+      }) ||
+      hideUidInstalled !== hideUidSelected ||
+      hidePingInstalled !== hidePingSelected ||
+      anticensorInstalled !== anticensorSelected,
+    [
+      activeMods,
+      selectedMods,
+      categoryNameErrors,
+      pakCategories,
+      appliedPakInstallLocationByMod,
+      hideUidInstalled,
+      hideUidSelected,
+      hidePingInstalled,
+      hidePingSelected,
+      anticensorInstalled,
+      anticensorSelected,
+    ],
   )
 
   const removeImportedMod = useCallback(
     async (name: string) => {
       const isActive = activeMods.includes(name)
 
-      const confirmed = await ask(
-        isActive
-          ? `Delete "${name}" from NTEMM?\n\nThis mod is currently active, so its copied files will also be removed from the game folder`
-          : `Delete "${name}" from NTEMM?\n\nThis removes the stored source files only`,
-        {
-          title: "Delete Imported Mod?",
-          kind: "warning",
-          okLabel: "Delete",
-          cancelLabel: "Cancel",
-        },
-      )
+      const confirmed = await dialog({
+        title: "Delete Imported Mod?",
+        message: isActive
+          ? `Delete "${name}" from NTEMM?\nThis mod is currently active, so its copied files will also be removed from the game folder`
+          : `Delete "${name}" from NTEMM?\nThis removes the stored source files only`,
+        kind: "warning",
+        isCancel: true,
+        okLabel: "Delete",
+        cancelLabel: "Cancel",
+      });
 
-      if (!confirmed) return
+      if (!confirmed.ok) return
 
       try {
         if (isActive) {
           const gameFolder = getGameFolder()
 
           if (!gameFolder) {
-            await message(
-              "This mod is active, but the game folder is not configured. Please configure it first so the copied files can be removed",
-              {
-                title: "Game Folder Missing",
-                kind: "warning",
-              },
-            )
+            await dialog({
+              title: "Game Folder Missing",
+              message: "This mod is active, but the game folder is not configured. Please configure it first so the copied files can be removed",
+              kind: "warning",
+            });
             return
           }
 
@@ -235,10 +364,11 @@ export function useModManager() {
         await loadImportedMods()
         await loadModStatuses()
       } catch (err) {
-        await message(String(err), {
+        await dialog({
           title: "Delete Failed",
+          message: String(err),
           kind: "error",
-        })
+        });
       }
     },
     [activeMods, loadImportedMods, loadModStatuses, pakCategories, selectedMods],
@@ -250,10 +380,11 @@ export function useModManager() {
     const cleanName = modName.trim()
 
     if (!cleanName) {
-      await message("Please enter a mod name", {
+      await dialog({
         title: "Mod Name Required",
+        message: "Please enter a mod name",
         kind: "warning",
-      })
+      });
       return
     }
 
@@ -264,15 +395,16 @@ export function useModManager() {
     let overwrite = false
 
     if (existingMod) {
-      overwrite = await ask(
-        `A mod named "${cleanName}" already exists\n\nDo you want to update it?\n\nThe old files will be deleted and replaced with the new import`,
-        {
-          title: "Update Existing Mod?",
-          kind: "warning",
-          okLabel: "Update",
-          cancelLabel: "Cancel",
-        },
-      )
+      const overwriteAsk = await dialog({
+        title: "Update Existing Mod?",
+        message: `A mod named "${cleanName}" already exists\nDo you want to update it?\nThe old files will be deleted and replaced with the new import`,
+        kind: "warning",
+        isCancel: true,
+        okLabel: "Update",
+        cancelLabel: "Cancel",
+      });
+
+      overwrite = overwriteAsk.ok
 
       if (!overwrite) return
     }
@@ -294,16 +426,18 @@ export function useModManager() {
       await loadImportedMods()
 
       if (result.warnings.length > 0) {
-        await message(result.warnings.join("\n"), {
+        await dialog({
           title: "Import Warning",
+          message: result.warnings.join("\n"),
           kind: "warning",
-        })
+        });
       }
     } catch (err) {
-      await message(String(err), {
+      await dialog({
         title: "Import Failed",
+        message: String(err),
         kind: "error",
-      })
+      });
     } finally {
       importingRef.current = false
       setIsImporting(false)
@@ -314,10 +448,11 @@ export function useModManager() {
     const gameFolder = getGameFolder()
 
     if (!gameFolder) {
-      await message("Please configure the game folder in Settings first", {
+      await dialog({
         title: "Game Folder Missing",
+        message: "Please configure the game folder in Settings first",
         kind: "warning",
-      })
+      });
       return
     }
 
@@ -333,46 +468,167 @@ export function useModManager() {
 
       setLoaderCheck(result)
 
-      await message(
-        current.valid
-          ? "Loader files removed successfully"
-          : "Loader files installed successfully",
-        {
-          title: current.valid ? "Loader Uninstalled" : "Loader Installed",
-          kind: "info",
-        },
-      )
+      if (current.valid) {
+        localStorage.removeItem('loaderVersions');
+      } else {
+        const currentVersions = loaderVersions;
+        localStorage.setItem("loaderVersions", JSON.stringify(currentVersions));
+      }
+      
+      await dialog({
+        title: current.valid ? "Loader Uninstalled" : "Loader Installed",
+        message: current.valid ? "Loader files removed successfully" : "Loader files installed successfully",
+        kind: "success",
+      });
     } catch (err) {
-      await message(String(err), {
+      await dialog({
         title: "Loader Action Failed",
+        message: String(err),
         kind: "error",
-      })
+      });
     }
   }, [])
 
-  const refreshLoaderCheck = useCallback(async () => {
+  const cleanGameMods = useCallback(async () => {
     const gameFolder = getGameFolder()
 
     if (!gameFolder) {
-      setLoaderCheck(null)
+      await dialog({
+        title: "Game Folder Missing",
+        message: "Please configure the game folder in Settings first",
+        kind: "warning",
+      })
       return
+    }
+
+    const confirmed = await dialog({
+      title: "Clean Game Files?",
+      message:"This will fully clean the game folder by removing ~mods folder, all loader files, and copied ASI mod files.\nYour imported mods will stay saved in NTEMM",
+      kind: "warning",
+      isCancel: true,
+      okLabel: "Clean",
+      cancelLabel: "Cancel",
+    })
+
+    if (!confirmed.ok) return
+
+    try {
+      const result = await invoke<LoaderFilesCheck>("clean_game_mods", {
+        path: gameFolder,
+      })
+
+      setLoaderCheck(result)
+      setActiveMods([])
+      setSelectedMods([])
+      setHideUidInstalled(false)
+      setHideUidSelected(false)
+      setHidePingInstalled(false)
+      setHidePingSelected(false)
+      setAnticensorInstalled(false)
+      setAnticensorSelected(false)
+
+      localStorage.removeItem("loaderVersions")
+      saveAppliedPakInstallLocationByMod({})
+      setAppliedPakInstallLocationByMod({})
+
+      await loadModStatuses()
+      await refreshBundledMods()
+
+      await dialog({
+        title: "Clean Complete",
+        message: "All files were removed from the game folder",
+        kind: "success",
+      })
+    } catch (err) {
+      await dialog({
+        title: "Clean Failed",
+        message: String(err),
+        kind: "error",
+      })
+    }
+  }, [loadModStatuses, refreshBundledMods])
+  
+  const checkLoaderVersion = async (gameFolder: string, currentLoaderCheck: LoaderFilesCheck) => {
+    if (!currentLoaderCheck.valid) return currentLoaderCheck;
+
+    const storedVersions = localStorage.getItem("loaderVersions");
+    const currentVersions = loaderVersions;
+    
+    const needsUpdate = storedVersions ? (() => {
+      const stored = JSON.parse(storedVersions);
+      
+      return (
+        stored.asi !== currentVersions.asi ||
+        stored.dll !== currentVersions.dll ||
+        stored.sub_dll !== currentVersions.sub_dll
+      );
+    })() : true;
+
+    if (needsUpdate) {
+
+      const updateConfirmed = await dialog({
+        title: "Loader Update Available",
+        message: "New version of loader files available\nWould you like to update them?",
+        kind: "warning",
+        isCancel: true,
+        okLabel: "Update",
+        cancelLabel: "Later",
+        timer: 59,
+        timerTo: "yes",
+      });
+      
+      if (updateConfirmed.ok) {
+        const result = await invoke<LoaderFilesCheck>("install_loader_files", {
+          path: gameFolder,
+        });
+        
+        if (result.valid) {
+          localStorage.setItem("loaderVersions", JSON.stringify(currentVersions));
+          await dialog({
+            title: "Loader Update",
+            message: "Loader files updated successfully",
+            kind: "success",
+          });
+        } else {
+          localStorage.removeItem('loaderVersions');
+          await dialog({
+            title: "Loader Update",
+            message: "Loader files faild to update",
+            kind: "error",
+          });
+        }
+        return result;
+      }
+    }
+    
+    return currentLoaderCheck;
+  };
+
+  const refreshLoaderCheck = useCallback(async () => {
+    const gameFolder = getGameFolder();
+
+    if (!gameFolder) {
+      setLoaderCheck(null);
+      return;
     }
 
     const result = await invoke<LoaderFilesCheck>("check_loader_files", {
       path: gameFolder,
-    })
+    });
 
-    setLoaderCheck(result)
-  }, [])
+    const versionCheckedResult = await checkLoaderVersion(gameFolder, result);
+    setLoaderCheck(versionCheckedResult);
+  }, []);
 
   const applyModChanges = useCallback(async () => {
     const gameFolder = getGameFolder()
 
     if (!gameFolder) {
-      await message("Please configure the game folder in Settings first", {
+      await dialog({
         title: "Game Folder Missing",
+        message: "Please configure the game folder in Settings first",
         kind: "warning",
-      })
+      });
       return
     }
 
@@ -381,13 +637,11 @@ export function useModManager() {
     })
 
     if (!loaderCheck.valid) {
-      await message(
-        `Required loader files are missing, Install them first`,
-        {
-          title: "Loader Files Missing",
-          kind: "warning",
-        },
-      )
+      await dialog({
+        title: "Loader Files Missing",
+        message: "Required loader files are missing, Install them first",
+        kind: "warning",
+      });
       return
     }
 
@@ -396,6 +650,9 @@ export function useModManager() {
         gamePath: gameFolder,
         selectedMods,
         pakCategories,
+        hideUidEnabled: hideUidSelected,
+        hidePingEnabled: hidePingSelected,
+        anticensorEnabled: anticensorSelected,
       })
 
       setActiveMods(active)
@@ -406,18 +663,31 @@ export function useModManager() {
       saveAppliedPakInstallLocationByMod(appliedLocations)
 
       await loadModStatuses()
+      await refreshBundledMods()
+      await refreshLoaderCheck()
 
-      await message("Mod changes applied successfully", {
+      await dialog({
         title: "Apply Complete",
-        kind: "info",
-      })
+        message: "Mod changes applied successfully",
+        kind: "success",
+      });
     } catch (err) {
-      await message(String(err), {
+      await dialog({
         title: "Apply Failed",
+        message: String(err),
         kind: "error",
-      })
+      });
     }
-  }, [loadModStatuses, pakCategories, selectedMods])
+  }, [
+    loadModStatuses,
+    pakCategories,
+    selectedMods,
+    hideUidSelected,
+    hidePingSelected,
+    anticensorSelected,
+    refreshBundledMods,
+    refreshLoaderCheck,
+  ])
 
   const addPakCategory = useCallback(() => {
     const error = getCategoryNameError(pakCategories, newCategoryName)
@@ -529,10 +799,11 @@ export function useModManager() {
           await loadModStatuses()
         }
       } catch (err) {
-        await message(String(err), {
+        await dialog({
           title: "Icon Change Failed",
+          message: String(err),
           kind: "error",
-        })
+        });
       }
     },
     [loadImportedMods],
@@ -592,10 +863,11 @@ export function useModManager() {
           await loadImportedMods()
 
           if (result.warnings.length > 0) {
-            await message(result.warnings.join("\n"), {
+            await dialog({
               title: "Import Warning",
+              message: result.warnings.join("\n"),
               kind: "warning",
-            })
+            });
           }
         } finally {
           importingRef.current = false
@@ -611,12 +883,89 @@ export function useModManager() {
     [loadImportedMods],
   )
 
+  const openImportFilePicker = useCallback(async () => {
+    if (importingRef.current || validatingDropRef.current) return
+
+    const selected = await open({
+      multiple: true,
+      filters: [
+        {
+          name: "Supported Mod Files",
+          extensions: ["zip", "rar", "7z", "asi", "ini", "pak", "ucas", "utoc"],
+        },
+      ],
+    })
+
+    if (!selected) return
+
+    const paths = Array.isArray(selected) ? selected : [selected]
+
+    if (paths.length === 0) return
+
+    validatingDropRef.current = true
+
+    try {
+      await importDroppedPaths(paths)
+    } catch (err) {
+      await dialog({
+        title: "Invalid Mod Files",
+        message: String(err),
+        kind: "warning",
+      })
+    } finally {
+      validatingDropRef.current = false
+    }
+  }, [importDroppedPaths])
+
+  const openImportFolderPicker = useCallback(async () => {
+    if (importingRef.current || validatingDropRef.current) return
+
+    const selected = await open({
+      directory: true,
+      multiple: false,
+    })
+
+    if (!selected) return
+
+    const paths = Array.isArray(selected) ? selected : [selected]
+
+    if (paths.length === 0) return
+
+    validatingDropRef.current = true
+
+    try {
+      await importDroppedPaths(paths)
+    } catch (err) {
+      await dialog({
+        title: "Invalid Mod Folder",
+        message: String(err),
+        kind: "warning",
+      })
+    } finally {
+      validatingDropRef.current = false
+    }
+  }, [importDroppedPaths])
+
+  useEffect(() => {
+    invoke<boolean>("is_app_elevated")
+      .then(setIsRunningAsAdmin)
+      .catch(() => setIsRunningAsAdmin(false))
+  }, [])
+
+  useEffect(() => {
+    bundledInstalledRef.current = {
+      hideUidInstalled,
+      hidePingInstalled,
+      anticensorInstalled,
+    }
+  }, [hideUidInstalled, hidePingInstalled, anticensorInstalled])
+
   useEffect(() => {
     refreshLoaderCheck()
 
     const intervalId = window.setInterval(() => {
       refreshLoaderCheck()
-    }, 3000)
+    }, 61*1000)
 
     window.addEventListener("gameFolderChanged", refreshLoaderCheck)
 
@@ -677,10 +1026,11 @@ export function useModManager() {
           try {
             await importDroppedPaths(payload.paths)
           } catch (err) {
-            await message(String(err), {
+            await dialog({
               title: "Invalid Mod Files",
+              message: String(err),
               kind: "warning",
-            })
+            });
           } finally {
             validatingDropRef.current = false
           }
@@ -768,6 +1118,7 @@ export function useModManager() {
   return {
     state: {
       loaderCheck,
+      gameVersion,
       isDragging,
       isImporting,
       lastImport,
@@ -786,6 +1137,13 @@ export function useModManager() {
       categoryNameErrors,
       collapsedUncategorized,
       collapsedPakCategories,
+      hideUidInstalled,
+      hideUidSelected,
+      hidePingInstalled,
+      hidePingSelected,
+      anticensorInstalled,
+      anticensorSelected,
+      isRunningAsAdmin,
     },
     actions: {
       setModsView,
@@ -795,6 +1153,7 @@ export function useModManager() {
       setModName,
       launchGame,
       toggleLoaderFiles,
+      cleanGameMods,
       refreshLoaderCheck,
       applyModChanges,
       hasPendingChanges,
@@ -815,6 +1174,13 @@ export function useModManager() {
       clearPakModIconForMod,
       closeImportDialog,
       closeCategoryDialog,
+      setHideUidSelected,
+      setHidePingSelected,
+      setAnticensorSelected,
+      getBundledModStatus,
+      refreshBundledMods,
+      openImportFilePicker,
+      openImportFolderPicker,
     },
   }
 }

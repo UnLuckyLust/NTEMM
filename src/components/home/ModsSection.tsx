@@ -59,7 +59,7 @@ export function ModsSection({
   clearPakModIconForMod,
 }: ModsSectionProps) {
   return (
-    <section className="flex min-h-0 max-h-max flex-1 flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+    <section className="flex min-h-0 h-full flex-1 flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <ViewButton active={modsView === "pak"} onClick={() => onModsViewChange("pak")}>
@@ -119,7 +119,7 @@ export function ModsSection({
         />
       ) : visibleMods.length === 0 ? (
         <div className="rounded-xl border border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-500">
-          No imported ASI mods yet.
+          No imported ASI mods yet
         </div>
       ) : (
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
@@ -185,6 +185,51 @@ function PakModsList({
   changePakModIcon,
   clearPakModIconForMod,
 }: Omit<ModsSectionProps, "modsView" | "visibleMods" | "onModsViewChange" | "onAddCategoryClick" | "onRefresh">) {
+
+  function toggleCategoryMods(mods: ImportedMod[]) {
+    const modNames = mods.map((mod) => mod.name)
+    const allSelected = modNames.every((name) => selectedMods.includes(name))
+
+    modNames.forEach((name) => {
+      const isSelected = selectedMods.includes(name)
+
+      if (allSelected && isSelected) {
+        toggleModSelection(name)
+      }
+
+      if (!allSelected && !isSelected) {
+        toggleModSelection(name)
+      }
+    })
+  }
+
+  function getCategoryEnabledCount(mods: ImportedMod[]) {
+    return mods.filter((mod) => {
+      const status = getModStatus(mod.name)
+
+      return status === "Enabled" || status === "Pending Disable"
+    }).length
+  }
+
+  function getCategoryEnabledText(mods: ImportedMod[]) {
+    const enabledCount = getCategoryEnabledCount(mods)
+    const totalCount = mods.length
+
+    if (totalCount === 1) {
+      return enabledCount === 1 ? "1 mod Enabled" : "1 mod Disabled"
+    }
+
+    if (enabledCount === 0) {
+      return "No mods enabled"
+    }
+
+    if (enabledCount === totalCount) {
+      return `All ${totalCount} mods enabled`
+    }
+
+    return `${enabledCount} of ${totalCount} mods enabled`
+  }
+  
   return (
     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden pr-1">
       <div
@@ -199,24 +244,31 @@ function PakModsList({
           </div>
 
           {pakModsWithoutCategory.length > 0 && (
-            <button
-              title="Expand/Collapse"
-              onClick={toggleUncategorizedCollapsed}
-              className="flex rounded-lg text-xl text-zinc-300 hover:text-pink-500"
-            >
-              <div className="text-xs text-zinc-300">
-                {pakModsWithoutCategory.length}{" "}
-                {pakModsWithoutCategory.length == 1 ? "Mod" : "Mods"}
-              </div>
+            <div className="flex items-center gap-2">
+              <button
+                title="Expand/Collapse"
+                onClick={toggleUncategorizedCollapsed}
+                className="flex rounded-lg text-xl text-zinc-300 hover:text-pink-500"
+              >
+                <div className="text-xs text-zinc-300">
+                  {getCategoryEnabledText(pakModsWithoutCategory)}
+                </div>
 
-              <AppIcon
-                icon={ collapsedUncategorized
-                  ? Icons.anglesDown
-                  : Icons.anglesUp
-                }
-                className="pl-1 text-[16px]"
-              />
-            </button>
+                <AppIcon
+                  icon={collapsedUncategorized ? Icons.anglesDown : Icons.anglesUp}
+                  className="pl-1 text-[16px]"
+                />
+              </button>
+
+              <button
+                onClick={() => toggleCategoryMods(pakModsWithoutCategory)}
+                className="rounded-lg border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
+              >
+                {pakModsWithoutCategory.every((mod) => selectedMods.includes(mod.name))
+                  ? "Deselect All"
+                  : "Select All"}
+              </button>
+            </div>
           )}
         </div>
 
@@ -244,7 +296,7 @@ function PakModsList({
       {pakCategories.map((category, index) => {
       const categoryMods = category.modNames
         .map((name) => allPakMods.find((mod) => mod.name === name))
-        .filter(Boolean)
+        .filter((mod): mod is ImportedMod => Boolean(mod))
       return (
         <div
           key={category.id}
@@ -254,7 +306,7 @@ function PakModsList({
         }`}
         >
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between">
               <div className="flex">
                 <button
                   onClick={() => movePakCategory(category.id, "up")}
@@ -280,7 +332,7 @@ function PakModsList({
                 onBlur={() => {
                   if (categoryNameErrors[category.id]) revertPakCategoryName(category.id)
                 }}
-                className="w-full rounded px-2 py-1 text-sm font-semibold text-zinc-200 outline-none border border-zinc-900 focus:border-pink-500"
+                className="w-full max-w-36 rounded px-2 py-1 text-sm font-semibold text-zinc-200 outline-none border border-zinc-900 focus:border-pink-500"
               />
 
               {categoryNameErrors[category.id] && (
@@ -292,24 +344,35 @@ function PakModsList({
 
             <div className="flex gap-1">
               {categoryMods.length > 0 && (
-                <button
-                  title="Expand/Collapse"
-                  onClick={() => togglePakCategoryCollapsed(category.id)}
-                  className=" mt-1 flex rounded-lg text-xl text-zinc-300 hover:text-pink-500"
-                >
-                  <div className="text-xs text-zinc-300">
-                    {categoryMods.length}{" "}
-                    {categoryMods.length == 1 ? "Mod" : "Mods"}
-                  </div>
+                <>
+                  <button
+                    title="Expand/Collapse"
+                    onClick={() => togglePakCategoryCollapsed(category.id)}
+                    className="mt-1 flex rounded-lg text-xl text-zinc-300 hover:text-pink-500"
+                  >
+                    <div className="text-xs text-zinc-300">
+                      {getCategoryEnabledText(categoryMods)}
+                    </div>
 
-                  <AppIcon
-                    icon={ collapsedPakCategories[category.id]
-                      ? Icons.anglesDown
-                      : Icons.anglesUp
-                    }
-                    className="pl-1 text-[16px]"
-                  />
-                </button>
+                    <AppIcon
+                      icon={
+                        collapsedPakCategories[category.id]
+                          ? Icons.anglesDown
+                          : Icons.anglesUp
+                      }
+                      className="pl-1 text-[16px]"
+                    />
+                  </button>
+
+                  <button
+                    onClick={() => toggleCategoryMods(categoryMods)}
+                    className="rounded-lg border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
+                  >
+                    {categoryMods.every((mod) => selectedMods.includes(mod.name))
+                      ? "Deselect All"
+                      : "Select All"}
+                  </button>
+                </>
               )}
 
               <button

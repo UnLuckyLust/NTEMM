@@ -1,6 +1,8 @@
 import { useState } from "react"
 import type { ImportedMod, ModUiStatus } from "@/types/modManager"
 import { convertFileSrc } from "@tauri-apps/api/core"
+import AppIcon from "../ui/AppIcon"
+import { Icons } from "@/lib/icons"
 
 function getStatusClassName(status: ModUiStatus) {
   if (status === "Enabled") return "bg-green-950/60 text-green-300"
@@ -56,6 +58,7 @@ export function ModCard(props: {
         if (!draggable) return
         const target = e.target as HTMLElement
         if (target.closest("button, input, a")) return
+        if (target.classList.contains('notDraggable')) return
         e.preventDefault()
         onPointerDragStart?.()
       }}
@@ -95,15 +98,18 @@ export function ModCard(props: {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex min-w-0 items-center gap-2">
-                <input
-                  title="toggle"
-                  type="checkbox"
-                  checked={selectedMods.includes(mod.name)}
-                  onChange={() => toggleModSelection(mod.name)}
-                />
+                <div className="flex gap-2 items-center notDraggable cursor-pointer"
+                onClick={() => toggleModSelection(mod.name)}>
+                  <input
+                    title="toggle"
+                    type="checkbox"
+                    checked={selectedMods.includes(mod.name)}
+                    onChange={(e) => e.preventDefault}
+                  />
 
-                <div className="truncate font-semibold text-zinc-100">
-                  {displayName}
+                  <div className="truncate font-semibold text-zinc-100 notDraggable">
+                    {displayName}
+                  </div>
                 </div>
 
                 <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${getStatusClassName(status)}`}>
@@ -149,10 +155,12 @@ export function ModCard(props: {
               )}
 
               <button
+                type="button"
+                title="delete mod"
                 onClick={() => removeImportedMod(mod.name)}
-                className="rounded-lg px-2 py-1 text-xs border border-red-800 bg-red-950/40 text-red-300 hover:bg-red-900/40"
+                className="rounded-lg text-xs p-1 text-red-800 hover:text-red-500"
               >
-                Delete
+                <AppIcon icon={Icons.delete} />
               </button>
             </div>
           </div>

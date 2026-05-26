@@ -6,6 +6,10 @@ export function listImportedMods() {
   return invoke<ImportedMod[]>("list_imported_mods")
 }
 
+export function refreshAutoModIcons() {
+  return invoke<number>("refresh_auto_mod_icons")
+}
+
 export function getModInstallStatuses(gamePath: string) {
   return invoke<ModInstallStatus[]>("get_mod_install_statuses", { gamePath })
 }
@@ -34,11 +38,17 @@ export function applyModSelection(params: {
   gamePath: string
   selectedMods: string[]
   pakCategories: ModCategory[]
+  hideUidEnabled?: boolean
+  hidePingEnabled?: boolean
+  anticensorEnabled?: boolean
 }) {
   return invoke<string[]>("apply_mod_selection", {
     gamePath: params.gamePath,
     selectedMods: params.selectedMods,
     pakCategories: buildPakCategoriesPayload(params.pakCategories),
+    hideUidEnabled: params.hideUidEnabled,
+    hidePingEnabled: params.hidePingEnabled,
+    anticensorEnabled: params.anticensorEnabled,
   })
 }
 

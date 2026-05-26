@@ -51,6 +51,9 @@ import {
   faScroll,
   faPlay,
   faMugHot,
+  faFileArrowDown,
+  faFileCirclePlus,
+  faFolderPlus,
 } from "@fortawesome/free-solid-svg-icons"
 
 import { faSquare } from "@fortawesome/free-regular-svg-icons"
@@ -109,6 +112,9 @@ library.add(
   faScroll,
   faPlay,
   faMugHot,
+  faFileArrowDown,
+  faFileCirclePlus,
+  faFolderPlus,
   
   faSquare,
 
