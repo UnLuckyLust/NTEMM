@@ -1,6 +1,12 @@
 <h1 align="center">NTE Mod Manager</h1>
 
 <p align="center">
+  <a href="https://www.virustotal.com/gui/file/3d9442cf4efe1dea9554c226cb757d7b843e918f23528293ac876282826b8060">
+    <img src="https://img.shields.io/badge/VirusTotal-Scan-blue?style=for-the-badge&logo=virustotal" />
+  </a>
+</p>
+
+<p align="center">
   A modern lightweight mod manager for <b>Neverness to Everness</b>.
 </p>
 
@@ -8,7 +14,7 @@
   Easily install, organize and manage your mods with a clean desktop interface.
 </p>
 
-<img width="1200" height="900" alt="NTEMM" src="https://github.com/user-attachments/assets/a72d4ac5-98d0-47fd-874a-efb82705dfaa" />
+<img width="1200" height="900" alt="NTEMM" src="https://github.com/user-attachments/assets/0a9fea85-0659-4eb8-a150-093e5dd9f95d" />
 
 ## About
 
@@ -36,7 +42,7 @@ The app is built with **Tauri** for fast startup times, low memory usage and a l
 
 ### Installer Version
 
-1. Download the installer release
+1. Download the installer [release](https://github.com/UnLuckyLust/NTEMM/releases/latest)
 2. Run the setup file
 3. Follow the installation steps
 4. Launch `NTEMM.exe`
@@ -47,7 +53,7 @@ Includes automatic shortcuts and uninstall support.
 
 ### Portable Version
 
-1. Download the portable ZIP release
+1. Download the portable ZIP [release](https://github.com/UnLuckyLust/NTEMM/releases/latest)
 2. Extract it anywhere you want
 3. Launch `NTEMM.exe`
 4. Select your game folder and start managing mods
@@ -75,7 +81,7 @@ The manager automatically organizes supported files into the correct game locati
 > Since the application is currently unsigned, Windows Defender or SmartScreen may display a warning when launching the app for the first time, This is normal for many indie and open-source applications.
 
 > [!WARNING]
- does not create mods or modify game code.  
+ The application does not create mods or modify game code.  
 > The application is only used to organize, install and manage existing community-made mods.
 
 ## Contributing
