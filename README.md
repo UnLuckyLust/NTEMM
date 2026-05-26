@@ -1,7 +1,7 @@
 <h1 align="center">NTE Mod Manager</h1>
 
 <p align="center">
-  <a href="https://www.virustotal.com/gui/file/3d9442cf4efe1dea9554c226cb757d7b843e918f23528293ac876282826b8060">
+  <a href="https://www.virustotal.com/gui/file/ba3161776268d5da4e4505f1ac16c1f211b0c100c0c312c05f3e4007ebd9d782">
     <img src="https://img.shields.io/badge/VirusTotal-Scan-blue?style=for-the-badge&logo=virustotal" />
   </a>
 </p>
