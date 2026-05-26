@@ -14,7 +14,7 @@
   Easily install, organize and manage your mods with a clean desktop interface.
 </p>
 
-<img width="1200" height="900" alt="NTEMM" src="https://github.com/user-attachments/assets/0a9fea85-0659-4eb8-a150-093e5dd9f95d" />
+<img width="1378" height="1001" alt="NTEMM" src="https://github.com/user-attachments/assets/fdbdc95a-e47a-477b-9e4d-7431c1f06173" />
 
 ## About
 
