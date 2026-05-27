@@ -14,7 +14,7 @@
   Easily install, organize and manage your mods with a clean desktop interface.
 </p>
 
-<img width="2560" height="1440" alt="HomePage" src="https://github.com/user-attachments/assets/1e26f90b-6ade-4abe-933c-98c0fa0bd517" />
+<img width="2560" height="1440" alt="HomePage" src="https://github.com/user-attachments/assets/e5cb8722-08de-44b3-9815-66480c3dd0b3" />
 
 ## About
 NTE Mod Manager is a lightweight desktop application designed to make modding Neverness to Everness easier and more organized.
