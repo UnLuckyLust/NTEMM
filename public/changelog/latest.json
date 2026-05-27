@@ -1,11 +1,11 @@
 {
-  "version": "1.1.0",
-  "notes": "NTEMM v1.1.0\n\n- Major backend optimization pass for faster and smoother mod applying.\n- Reduced freezes, black-screen flashes, and unnecessary repeated file scans.\n- Prevented command windows from appearing during backend operations.\n- Improved folder icon, archive extraction, and mod import performance.\n- Reduced unnecessary file copying when mod files are already up to date.\n- Improved the UI layout and overall mod management experience.\n- Made mod names clickable for easier and more intuitive enable/disable actions.\n- Added Select All controls for mod categories.\n- Added a Clean function to fully remove applied files from the game folder while keeping imported mods saved in NTEMM.\n- Added automatic mod icon detection for known characters.\n- Added TW version support.\n- Improved CN version support.\n- Added automatic Engine.ini detection based on the detected game version.\n- Added dependency version checks for bundled files such as loader.asi.\n- Added a custom pop-up window system.\n- Added built-in Hide UID mod support.\n- Improved admin permission handling when the game is installed on the C: drive.\n- Fixed an issue where applying changes or installing loader files could fail when the game folder was under the C: drive.\n- Fixed an issue where multiple NTEMM windows could be opened at the same time.",
-  "pub_date": "2026-05-26T11:45:41.104Z",
+  "version": "1.2.0",
+  "notes": "NTEMM v1.2.0\n\n- Updated several UI elements to use clearer icons instead of plain text.\n- Improved mod cards to show the most relevant mod data while collapsed.\n- Improved ASI mod cleanup to also remove matching .log files when available.\n- Added support for mod preview images.\n- Added automatic closing for common alert popups.\n- Added early GameBanana integration preparation for a future built-in mod browser.\n- Fixed CN version loader compatibility after the 27/05/2026 launcher update.\n- Fixed Anticensor status detection so it reflects the actual installed file state.\n- Fixed UI mods status detection so installed mods stay correctly shown even when loader files are missing.",
+  "pub_date": "2026-05-27T15:53:47.586Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUeDVHeGIxQktqSUduR2dJMDY2UmV2ZWdMZHMzWTdqb2dReERaRVppeXpJRXRBc2VCbkFPY0x0T3E3Mk1BK0RtK3VtM2p3RjAyWTkvS3Q5dThWRnhQNkVZWUQrZXNScXd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5Nzk1OTM5CWZpbGU6TlRFTU1fMS4xLjBfeDY0LXNldHVwLmV4ZQpnL2RmWEFMRlJneGRwejliTEJwUHRvdTlwL3NvcCtBUmszVk92OWh2a3RBaEtJUFpLM0RTWWRLSVlLQWJGdUFBclhyZlpDUEYyL3FKUnRIOEo0R2RBUT09Cg==",
-      "url": "https://github.com/UnLuckyLust/NTEMM/releases/download/v1.1.0/NTEMM_1.1.0_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUeDVHeGIxQktqSUxoNlRFRDZYUU9OVTRDQjVFV1c3Qno2Uy9PaTdOTXJYUnA2Yi85WWVRc0Rkem5ES3FYS05SZE5zUmpTaFlKYmIzaFJBdEVkZkdYS3dSaGpUWkdNZEFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5ODk3MjI2CWZpbGU6TlRFTU1fMS4yLjBfeDY0LXNldHVwLmV4ZQozVHR0ZUtXK3JZcVAvYzVJcU9qSzh1M0sxVktVeTdyVTRPaGhtRGRjMUlIcmF0enR2cUV1NllqRWVvZmtZajZwTVlBTm5wVlJPZG5BcW5ZdjZjRTFCUT09Cg==",
+      "url": "https://github.com/UnLuckyLust/NTEMM/releases/download/v1.2.0/NTEMM_1.2.0_x64-setup.exe"
     }
   }
 }

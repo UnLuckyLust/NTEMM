@@ -1,18 +1,15 @@
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useState } from "react"
 import Titlebar from "@/components/Titlebar"
 import Footer from "@/components/Footer"
 import backgroundVideo from "@/assets/background.mp4"
-
-interface AppLayoutProps {
-  children: ReactNode
-  onOpenSettings: () => void
-  isSettingsOpen: boolean
-}
+import { AppLayoutProps } from "@/interfaces/app"
 
 export default function AppLayout({
   children,
   onOpenSettings,
+  onOpenGameBanana,
   isSettingsOpen,
+  isGameBananaOpen,
 }: AppLayoutProps) {
   const [backgroundMode, setBackgroundMode] = useState(
     localStorage.getItem("backgroundMode") ?? "animated",
@@ -48,7 +45,9 @@ export default function AppLayout({
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         <Titlebar
           onOpenSettings={onOpenSettings}
+          onOpenGameBanana={onOpenGameBanana}
           isSettingsOpen={isSettingsOpen}
+          isGameBananaOpen={isGameBananaOpen}
         />
 
         <div className="flex min-h-0 flex-1">

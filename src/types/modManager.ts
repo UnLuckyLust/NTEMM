@@ -22,6 +22,7 @@ export type ImportedMod = {
   path: string
   files: string[]
   iconPath?: string | null
+  previewImagePaths: string[]
   metadata?: ModMetadata | null
   metadataError?: string | null
 }
@@ -72,4 +73,32 @@ export type LoaderFilesCheck = {
   proxyDllFound: boolean
   missingFiles: string[]
   message: string
+}
+
+export type ModsSectionProps = {
+  modsView: ModsView
+  visibleMods: ImportedMod[]
+  pakModsWithoutCategory: ImportedMod[]
+  allPakMods: ImportedMod[]
+  pakCategories: ModCategory[]
+  selectedMods: string[]
+  draggedPakModName: string | null
+  categoryNameErrors: Record<string, string>
+  collapsedPakCategories: Record<string, boolean>
+  collapsedUncategorized: boolean
+  onModsViewChange: (view: ModsView) => void
+  onAddCategoryClick: () => void
+  onRefresh: () => void
+  onBeginPakDrag: (modName: string) => void
+  toggleModSelection: (name: string) => void
+  getModStatus: (name: string) => ModUiStatus
+  removeImportedMod: (name: string) => void
+  updatePakCategoryName: (categoryId: string, name: string) => void
+  revertPakCategoryName: (categoryId: string) => void
+  movePakCategory: (categoryId: string, direction: "up" | "down") => void
+  deletePakCategory: (categoryId: string) => void
+  toggleUncategorizedCollapsed: () => void
+  togglePakCategoryCollapsed: (categoryId: string) => void
+  changePakModIcon: (modName: string) => void
+  clearPakModIconForMod: (modName: string) => void
 }

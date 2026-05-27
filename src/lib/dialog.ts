@@ -2,31 +2,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-
-export type PopupKind = "info" | "warning" | "success" | "error";
-
-export type PopupArgs = {
-  title?: string;
-  message: string;
-  kind: PopupKind;
-  timer?: number;
-  timerTo?: "yes" | "no";
-  okLabel?: string;
-  isCancel?: boolean;
-  cancelLabel?: string;
-};
-
-export type DialogResult = {
-  ok: boolean;
-  reason?: "ok" | "cancel" | "timeout";
-  error?: boolean;
-  errorMessage?: string | null;
-};
-
-type PopupEventPayload = {
-  id: string;
-  result: DialogResult;
-};
+import { PopupArgs, DialogResult, PopupEventPayload } from "@/types/app";
 
 const pending = new Map<string, (result: DialogResult) => Promise<void>>();
 let listenerPromise: Promise<UnlistenFn> | null = null;

@@ -8,10 +8,10 @@ use crate::app::utils::copy_if_changed;
 use crate::game::game::validate;
 use crate::mods::ui_mods::remove_all_ui_mods;
 
-fn loader_proxy_name(game_version: &str) -> &'static str {
+fn loader_proxy_names(game_version: &str) -> &'static [&'static str] {
     match game_version {
-        "cn" => "dsound.dll",
-        _ => "version.dll",
+        "cn" => &["dsound.dll", "dinput8.dll"],
+        _ => &["version.dll"],
     }
 }
 
@@ -41,8 +41,25 @@ fn app_mod_storage_root() -> Result<PathBuf, String> {
 }
 
 fn remove_file_if_exists(path: &Path) -> Result<(), String> {
-    if path.exists() {
+    if path.is_file() {
         fs::remove_file(path).map_err(|e| format!("Failed to remove {}: {e}", path.display()))?;
+    }
+
+    Ok(())
+}
+
+fn remove_file_with_matching_log_if_asi(path: &Path) -> Result<(), String> {
+    remove_file_if_exists(path)?;
+
+    if path
+        .extension()
+        .map(|ext| ext.to_string_lossy().eq_ignore_ascii_case("asi"))
+        .unwrap_or(false)
+    {
+        if let Some(stem) = path.file_stem() {
+            let log_file = path.with_file_name(format!("{}.log", stem.to_string_lossy()));
+            remove_file_if_exists(&log_file)?;
+        }
     }
 
     Ok(())
@@ -96,18 +113,7 @@ fn remove_imported_asi_files(game_path: &Path) -> Result<(), String> {
                 continue;
             };
 
-            remove_file_if_exists(&asi_target.join(name))?;
-
-            if file
-                .extension()
-                .map(|ext| ext.to_string_lossy().eq_ignore_ascii_case("asi"))
-                .unwrap_or(false)
-            {
-                if let Some(stem) = file.file_stem() {
-                    let log_file = asi_target.join(format!("{}.log", stem.to_string_lossy()));
-                    let _ = remove_file_if_exists(&log_file);
-                }
-            }
+            remove_file_with_matching_log_if_asi(&asi_target.join(name))?;
         }
     }
 
@@ -147,11 +153,13 @@ pub fn check_loader_files_inner(path: &str) -> LoaderFilesCheck {
     let loader_dir = loader_target_dir(Path::new(path));
 
     let game_check = validate(Path::new(path));
-    let proxy_dll_name = loader_proxy_name(&game_check.game_version);
+    let proxy_dll_names = loader_proxy_names(&game_check.game_version);
 
     let asi_found = loader_dir.join("loader.asi").is_file();
     let cutils_found = loader_dir.join("cutils.dll").is_file();
-    let proxy_dll_found = loader_dir.join(proxy_dll_name).is_file();
+    let proxy_dll_found = proxy_dll_names
+        .iter()
+        .all(|proxy_dll_name| loader_dir.join(proxy_dll_name).is_file());
 
     let mut missing_files = Vec::new();
 
@@ -163,8 +171,10 @@ pub fn check_loader_files_inner(path: &str) -> LoaderFilesCheck {
         missing_files.push("cutils.dll".to_string());
     }
 
-    if !proxy_dll_found {
-        missing_files.push(proxy_dll_name.to_string());
+    for proxy_dll_name in proxy_dll_names {
+        if !loader_dir.join(proxy_dll_name).is_file() {
+            missing_files.push(proxy_dll_name.to_string());
+        }
     }
 
     let valid = missing_files.is_empty();
@@ -210,10 +220,10 @@ fn install_loader_files_inner_with_resource_root(
         return Err("Invalid game folder".to_string());
     }
 
-    let proxy_dll_name = loader_proxy_name(&game_check.game_version);
+    let proxy_dll_names = loader_proxy_names(&game_check.game_version);
     let bundled_loader_dir = resource_root.join("loader");
 
-    let files = [
+    let base_files = [
         (
             bundled_loader_dir.join("loader.asi"),
             loader_dir.join("loader.asi"),
@@ -222,13 +232,9 @@ fn install_loader_files_inner_with_resource_root(
             bundled_loader_dir.join("subloader.dll"),
             loader_dir.join("cutils.dll"),
         ),
-        (
-            bundled_loader_dir.join("loader.dll"),
-            loader_dir.join(proxy_dll_name),
-        ),
     ];
 
-    for (source, target) in files {
+    for (source, target) in base_files {
         if !source.is_file() {
             return Err(format!(
                 "Bundled loader file not found: {}",
@@ -237,6 +243,19 @@ fn install_loader_files_inner_with_resource_root(
         }
 
         copy_if_changed(&source, &target)?;
+    }
+
+    let loader_dll_source = bundled_loader_dir.join("loader.dll");
+
+    if !loader_dll_source.is_file() {
+        return Err(format!(
+            "Bundled loader file not found: {}",
+            loader_dll_source.display()
+        ));
+    }
+
+    for proxy_dll_name in proxy_dll_names {
+        copy_if_changed(&loader_dll_source, &loader_dir.join(proxy_dll_name))?;
     }
 
     Ok(check_loader_files_inner(&path))
@@ -257,12 +276,9 @@ pub fn uninstall_loader_files_inner(path: String) -> Result<LoaderFilesCheck, St
         return Err("Invalid game folder".to_string());
     }
 
-    let proxy_dll_name = loader_proxy_name(&game_check.game_version);
-
     let files = [
         loader_dir.join("loader.asi"),
         loader_dir.join("cutils.dll"),
-        loader_dir.join(proxy_dll_name),
         loader_dir.join("Anticensor.asi"),
         // Old / legacy loader files, safe cleanup
         loader_dir.join("AyakaNTEModLoader.asi"),
@@ -273,8 +289,7 @@ pub fn uninstall_loader_files_inner(path: String) -> Result<LoaderFilesCheck, St
 
     for file in files {
         if file.exists() {
-            std::fs::remove_file(&file)
-                .map_err(|e| format!("Failed to remove {}: {e}", file.display()))?;
+            remove_file_with_matching_log_if_asi(&file)?;
         }
     }
 
@@ -308,7 +323,7 @@ pub fn clean_game_mods_inner(path: String) -> Result<LoaderFilesCheck, String> {
     ];
 
     for file in files {
-        remove_file_if_exists(&file)?;
+        remove_file_with_matching_log_if_asi(&file)?;
     }
 
     Ok(check_loader_files_inner(&path))

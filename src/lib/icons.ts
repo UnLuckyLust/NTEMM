@@ -34,6 +34,17 @@ export const Icons: Record<string, IconProp> = {
   mugHot: "mug-hot",
   file: "file-circle-plus",
   folder: "folder-plus",
+  collapse: "up-right-and-down-left-from-center",
+  expand: "down-left-and-up-right-to-center",
+  panorma: "panorama",
+  images: "images",
+  refresh: "clock-rotate-left",
+  tags: "tags",
+  objectGroup: "object-group",
+  puzzle: "puzzle-piece",
+  heart: "heart",
+  download: "download",
+  link: "arrow-up-right-from-square",
 
   github: ["fab", "github"],
   

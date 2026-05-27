@@ -3,13 +3,9 @@ import { useEffect, useState, useRef } from "react"
 import AppIcon from "@/components/ui/AppIcon"
 import { Icons } from "@/lib/icons"
 import logo from "@/assets/icon.png"
+import { TitlebarProps } from "@/interfaces/app"
 
 const appWindow = getCurrentWindow()
-
-interface TitlebarProps {
-  onOpenSettings: () => void
-  isSettingsOpen: boolean
-}
 
 function useOneShotAnimation(duration = 600) {
   const [active, setActive] = useState(false)
@@ -56,12 +52,13 @@ function useOneShotAnimation(duration = 600) {
   return [active, trigger, stop] as const
 }
 
-export default function Titlebar({ onOpenSettings, isSettingsOpen }: TitlebarProps) {
+export default function Titlebar({ onOpenSettings, isSettingsOpen /*, onOpenGameBanana, isGameBananaOpen */ }: TitlebarProps) {
   const [isMaximized, setIsMaximized] = useState(false)
-  const [animateMin, triggerMin, stopMin] = useOneShotAnimation(500)
-  const [animateMax, triggerMax, stopMax] = useOneShotAnimation(500)
+  const [animateMin, triggerMin, stopMin] = useOneShotAnimation(800)
+  const [animateMax, triggerMax, stopMax] = useOneShotAnimation(800)
   const [animateClose, triggerClose, stopClose] = useOneShotAnimation(500)
   const [animateSettings, triggerSettings, stopSettings] = useOneShotAnimation(1000)
+  // const [animateGB, triggerGB, stopGB] = useOneShotAnimation(800)
 
   useEffect(() => {
     appWindow.isMaximized().then(setIsMaximized)
@@ -121,6 +118,23 @@ export default function Titlebar({ onOpenSettings, isSettingsOpen }: TitlebarPro
       </div>
 
       <div className="flex h-full items-center px-2">
+        {/* <button
+          type="button"
+          aria-label={isGameBananaOpen ? "Close GameBanana" : "GameBanana"}
+          title={isGameBananaOpen ? "Close GameBanana" : "GameBanana"}
+          onMouseEnter={triggerGB}
+          onMouseLeave={stopGB}
+          onClick={onOpenGameBanana}
+          className={`${iconBtn} ${
+            isGameBananaOpen ? iconVariants.yellow : iconVariants.yellow
+          }`}
+        >
+          <AppIcon
+            icon={Icons.puzzle}
+            className={`text-[15px] ${animateGB ? "fa-beat" : ""}`}
+          />
+        </button> */}
+
         <button
           type="button"
           aria-label={isSettingsOpen ? "Close Settings" : "Settings"}

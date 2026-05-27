@@ -1,10 +1,7 @@
 import { invoke } from "@tauri-apps/api/core"
 import { useEffect, useState } from "react"
 import type { EngineIniCheck } from "@/types/engineIni"
-
-interface HudScaleCardProps {
-  gamePath: string
-}
+import { HudScaleCardProps } from "@/interfaces/app"
 
 export function HudScaleCard({ gamePath }: HudScaleCardProps) {
   const [engineIniPath, setEngineIniPath] = useState("")

@@ -138,11 +138,14 @@ pub async fn check_ui_mods(path: String) -> Result<UiModsStatus, String> {
         let loader_check = check_loader_files_inner(&path);
 
         if !loader_check.valid {
+            let hide_uid = ui_mod_info("hide_uid")?;
+            let hide_ping = ui_mod_info("hide_ping")?;
+
             return Ok(UiModsStatus {
-                hide_uid_installed: false,
-                hide_ping_installed: false,
+                hide_uid_installed: ui_mod_installed(game_path, &hide_uid),
+                hide_ping_installed: ui_mod_installed(game_path, &hide_ping),
                 path: ui_mods_target_root(game_path).to_string_lossy().to_string(),
-                message: "Install loader files first".to_string(),
+                message: "UI mods are installed, but loader files are missing".to_string(),
             });
         }
 

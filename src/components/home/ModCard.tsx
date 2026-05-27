@@ -37,20 +37,53 @@ export function ModCard(props: {
   } = props
 
   const [expanded, setExpanded] = useState(false)
+  const [openPreviewIndex, setOpenPreviewIndex] = useState<number | null>(null)
 
   const status = getModStatus(mod.name)
   const meta = mod.metadata
   const displayName = meta?.name || mod.name
+  const previewImages = mod.previewImagePaths ?? []
 
-  const hasExtraMetadata =
-    Boolean(meta?.description) ||
-    Boolean(meta?.modLink) ||
-    Boolean(meta?.supportLink) ||
-    Boolean(meta?.tags) ||
-    Boolean(mod.metadataError)
+  const hasTags = Boolean(meta?.tags && meta.tags.length > 0)
+  const hasLinks = Boolean(meta?.modLink || meta?.supportLink)
+  const hasDescription = Boolean(meta?.description)
+  const hasPreviewImages = previewImages.length > 0
 
-  const canExpand = hasExtraMetadata
-  const showDetails = expanded || !canExpand
+  const topSummaryType: "tags" | "links" | "description" | "files" =
+    hasTags ? "tags" : hasLinks ? "links" : hasDescription ? "description" : "files"
+
+  const canExpand =
+    hasPreviewImages ||
+    Boolean(mod.metadataError) ||
+    topSummaryType !== "tags" && hasTags ||
+    topSummaryType !== "links" && hasLinks ||
+    topSummaryType !== "description" && hasDescription ||
+    topSummaryType !== "files"
+
+  const openPreviewPath =
+    openPreviewIndex === null ? null : previewImages[openPreviewIndex]
+
+  const openPreview = (index: number) => {
+    setOpenPreviewIndex(index)
+  }
+
+  const closePreview = () => {
+    setOpenPreviewIndex(null)
+  }
+
+  const showPrevPreview = () => {
+    if (!hasPreviewImages) return
+    setOpenPreviewIndex((index) =>
+      index === null ? 0 : (index - 1 + previewImages.length) % previewImages.length
+    )
+  }
+
+  const showNextPreview = () => {
+    if (!hasPreviewImages) return
+    setOpenPreviewIndex((index) =>
+      index === null ? 0 : (index + 1) % previewImages.length
+    )
+  }
 
   return (
     <div
@@ -94,10 +127,10 @@ export function ModCard(props: {
           </div>
         )}
 
-        <div className="flex min-h-14 min-w-0 flex-1 flex-col justify-center">
+        <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className="flex min-w-0 items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2 mt-px">
                 <div className="flex gap-2 items-center notDraggable cursor-pointer"
                 onClick={() => toggleModSelection(mod.name)}>
                   <input
@@ -129,53 +162,112 @@ export function ModCard(props: {
                 )}
               </div>
 
-              {meta?.tags && meta.tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {meta.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full border border-pink-500/30 bg-pink-950/30 px-2 py-0.5 text-xs text-pink-200"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
+              <div className="mt-2 space-y-2">
+                {topSummaryType === "tags" && meta?.tags && meta.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {meta.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full border border-pink-500/30 bg-pink-950/30 px-2 py-0.5 text-xs text-pink-200"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {topSummaryType === "links" && hasLinks && (
+                  <div className="flex gap-3 text-xs notDraggable">
+                    {meta?.modLink && (
+                      <a
+                        href={meta.modLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-pink-300 hover:underline"
+                      >
+                        Mod Page
+                      </a>
+                    )}
+
+                    {meta?.supportLink && (
+                      <a
+                        href={meta.supportLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-pink-300 hover:underline"
+                      >
+                        Author Support
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                {topSummaryType === "description" && meta?.description && (
+                  <div className="text-sm text-zinc-300">
+                    {meta.description}
+                  </div>
+                )}
+
+                {topSummaryType === "files" && (
+                  <div className="flex max-h-24 flex-wrap gap-1 overflow-y-auto overflow-x-hidden pr-1">
+                    {mod.files.map((file) => (
+                      <span
+                        key={file}
+                        className="rounded border border-zinc-700 bg-zinc-950 px-2 py-0.5 text-xs text-zinc-300"
+                      >
+                        {file}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
-              {canExpand && (
+            <div className="flex shrink-0 items-center">
+              {hasPreviewImages && (
                 <button
                   type="button"
-                  onClick={() => setExpanded((value) => !value)}
-                  className="rounded-lg border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
+                  onClick={() => openPreview(0)}
+                  className="rounded-lg text-sm p-1 text-zinc-500 hover:text-zinc-100"
+                  title="Show preview images"
                 >
-                  {expanded ? "Collapse" : "Expand"}
+                  <AppIcon icon={Icons.images} />
+                </button>
+              )}
+
+              {canExpand && (
+                <button
+                  title="Expand/Collapse exten ded mod info"
+                  type="button"
+                  onClick={() => setExpanded((value) => !value)}
+                  className="rounded-lg text-sm p-1 text-zinc-500 hover:text-zinc-100"
+                >
+                  <AppIcon icon={expanded ? Icons.expand : Icons.collapse} />
                 </button>
               )}
 
               <button
                 type="button"
-                title="delete mod"
+                title="Delete mod"
                 onClick={() => removeImportedMod(mod.name)}
-                className="rounded-lg text-xs p-1 text-red-800 hover:text-red-500"
+                className="rounded-lg text-sm p-1 text-red-800 hover:text-red-500"
               >
                 <AppIcon icon={Icons.delete} />
               </button>
             </div>
           </div>
 
-          {showDetails && (
-            <div className="mt-3 space-y-3">
-              {meta?.description && (
+          {expanded && (
+            <div className="mt-2 min-w-0 space-y-2 overflow-hidden">
+              {topSummaryType !== "description" && meta?.description && (
                 <div className="text-sm text-zinc-300">
                   {meta.description}
                 </div>
               )}
 
-              {(meta?.modLink || meta?.supportLink) && (
-                <div className="flex gap-3 text-xs">
-                  {meta.modLink && (
+              {topSummaryType !== "links" && hasLinks && (
+                <div className="flex gap-3 text-xs notDraggable">
+                  {meta?.modLink && (
                     <a
                       href={meta.modLink}
                       target="_blank"
@@ -186,7 +278,7 @@ export function ModCard(props: {
                     </a>
                   )}
 
-                  {meta.supportLink && (
+                  {meta?.supportLink && (
                     <a
                       href={meta.supportLink}
                       target="_blank"
@@ -199,11 +291,7 @@ export function ModCard(props: {
                 </div>
               )}
 
-              <div>
-                {/* <div className="mb-1 text-xs text-zinc-500">
-                  {mod.files.length} files
-                </div> */}
-
+              {topSummaryType !== "files" && (
                 <div className="flex max-h-24 flex-wrap gap-1 overflow-y-auto overflow-x-hidden pr-1">
                   {mod.files.map((file) => (
                     <span
@@ -214,7 +302,28 @@ export function ModCard(props: {
                     </span>
                   ))}
                 </div>
-              </div>
+              )}
+
+              {previewImages.length > 0 && (
+                <div className="notDraggable flex max-w-full gap-2 overflow-x-auto overflow-y-hidden pb-1">
+                  {previewImages.map((imagePath, index) => (
+                    <button
+                      key={imagePath}
+                      type="button"
+                      onClick={() => openPreview(index)}
+                      className="h-24 w-36 shrink-0 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900 hover:border-pink-500"
+                      title="Open preview"
+                    >
+                      <img
+                        src={convertFileSrc(imagePath)}
+                        className="h-full w-full object-cover"
+                        alt="Mod preview"
+                        loading="lazy"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {mod.metadataError && (
                 <div className="rounded border border-orange-800 bg-orange-950/30 px-2 py-1 text-xs text-orange-300">
@@ -225,6 +334,77 @@ export function ModCard(props: {
           )}
         </div>
       </div>
+
+      {openPreviewPath && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6 notDraggable cursor-default"
+          onClick={closePreview}
+        >
+          <div
+            className="flex max-h-[70vh] max-w-[70vw] flex-col items-center gap-2"
+            onClick={(e) => e.stopPropagation()}
+            onWheel={(e) => {
+              e.stopPropagation()
+              if (previewImages.length <= 1) return
+
+              if (e.deltaY > 0) {
+                showNextPreview()
+              } else if (e.deltaY < 0) {
+                showPrevPreview()
+              }
+            }}
+          >
+            <img
+              src={convertFileSrc(openPreviewPath)}
+              className="notDraggable max-h-[70vh] max-w-[70vw] rounded-xl border border-zinc-800 object-contain"
+              alt="Mod preview"
+            />
+
+            <div className="flex gap-2 absolute bottom-60 left-1/2 -translate-x-1/2">
+              <button
+                type="button"
+                className="notDraggable rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-1 text-sm text-zinc-200 hover:bg-zinc-800"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  closePreview()
+                }}
+              >
+                Close
+              </button>
+
+              <button
+                type="button"
+                className="notDraggable text-lg text-zinc-200 hover:text-pink-500"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  showPrevPreview()
+                }}
+                title="Previous preview"
+              >
+                <AppIcon icon={"caret-left"}/>
+              </button>
+
+              {previewImages.length > 1 && openPreviewIndex !== null && (
+                <div className="notDraggable rounded-lg border border-zinc-700 bg-zinc-950/90 px-3 py-1.5 text-xs text-zinc-300">
+                  <span className="text-pink-500">{openPreviewIndex + 1}</span> / {previewImages.length}
+                </div>
+              )}
+
+              <button
+                type="button"
+                className="notDraggable text-lg text-zinc-200 hover:text-pink-500"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  showNextPreview()
+                }}
+                title="Next preview"
+              >
+                <AppIcon icon={"caret-right"}/>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

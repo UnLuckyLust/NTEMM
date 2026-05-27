@@ -32,6 +32,30 @@ fn anticensor_resource_root(app: &tauri::AppHandle) -> Result<std::path::PathBuf
         .join("resources"))
 }
 
+fn remove_asi_with_log_if_exists(path: &Path) -> Result<(), String> {
+    if path.is_file() {
+        std::fs::remove_file(path)
+            .map_err(|e| format!("Failed to remove {}: {e}", path.display()))?;
+    }
+
+    if path
+        .extension()
+        .map(|ext| ext.to_string_lossy().eq_ignore_ascii_case("asi"))
+        .unwrap_or(false)
+    {
+        if let Some(stem) = path.file_stem() {
+            let log_file = path.with_file_name(format!("{}.log", stem.to_string_lossy()));
+
+            if log_file.is_file() {
+                std::fs::remove_file(&log_file)
+                    .map_err(|e| format!("Failed to remove {}: {e}", log_file.display()))?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 #[tauri::command(rename_all = "camelCase")]
 pub async fn check_anticensor_mod(path: String) -> Result<AnticensorStatus, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -39,18 +63,20 @@ pub async fn check_anticensor_mod(path: String) -> Result<AnticensorStatus, Stri
         let target = anticensor_target_path(game_path);
         let loader_check = check_loader_files_inner(&path);
 
+        let installed = target.is_file();
+
         Ok(AnticensorStatus {
-            installed: loader_check.valid && target.is_file(),
+            installed,
             loader_installed: loader_check.valid,
             path: target.to_string_lossy().to_string(),
-            message: if loader_check.valid {
-                if target.is_file() {
+            message: if installed {
+                if loader_check.valid {
                     "Anticensor is installed".to_string()
                 } else {
-                    "Anticensor is not installed".to_string()
+                    "Anticensor is installed, but loader files are missing".to_string()
                 }
             } else {
-                "Install loader files first".to_string()
+                "Anticensor is not installed".to_string()
             },
         })
     })
@@ -68,10 +94,7 @@ pub fn set_anticensor_mod_inner_with_loader_status(
     let target = anticensor_target_path(game_path);
 
     if !loader_installed {
-        if target.is_file() {
-            std::fs::remove_file(&target)
-                .map_err(|e| format!("Failed to remove Anticensor.asi: {e}"))?;
-        }
+        remove_asi_with_log_if_exists(&target)?;
 
         return Ok(AnticensorStatus {
             installed: false,
@@ -92,9 +115,8 @@ pub fn set_anticensor_mod_inner_with_loader_status(
         }
 
         copy_if_changed(&source, &target)?;
-    } else if target.is_file() {
-        std::fs::remove_file(&target)
-            .map_err(|e| format!("Failed to remove Anticensor.asi: {e}"))?;
+    } else {
+        remove_asi_with_log_if_exists(&target)?;
     }
 
     Ok(AnticensorStatus {

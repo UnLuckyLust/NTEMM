@@ -1,36 +1,9 @@
 import type { ReactNode } from "react"
-import type { ImportedMod, ModCategory, ModUiStatus, ModsView } from "@/types/modManager"
+import type { ImportedMod } from "@/types/modManager"
 import { ModCard } from "@/components/home/ModCard"
 import AppIcon from "@/components/ui/AppIcon"
 import { Icons } from "@/lib/icons"
-
-type ModsSectionProps = {
-  modsView: ModsView
-  visibleMods: ImportedMod[]
-  pakModsWithoutCategory: ImportedMod[]
-  allPakMods: ImportedMod[]
-  pakCategories: ModCategory[]
-  selectedMods: string[]
-  draggedPakModName: string | null
-  categoryNameErrors: Record<string, string>
-  collapsedPakCategories: Record<string, boolean>
-  collapsedUncategorized: boolean
-  onModsViewChange: (view: ModsView) => void
-  onAddCategoryClick: () => void
-  onRefresh: () => void
-  onBeginPakDrag: (modName: string) => void
-  toggleModSelection: (name: string) => void
-  getModStatus: (name: string) => ModUiStatus
-  removeImportedMod: (name: string) => void
-  updatePakCategoryName: (categoryId: string, name: string) => void
-  revertPakCategoryName: (categoryId: string) => void
-  movePakCategory: (categoryId: string, direction: "up" | "down") => void
-  deletePakCategory: (categoryId: string) => void
-  toggleUncategorizedCollapsed: () => void
-  togglePakCategoryCollapsed: (categoryId: string) => void
-  changePakModIcon: (modName: string) => void
-  clearPakModIconForMod: (modName: string) => void
-}
+import { ModsSectionProps } from "@/types/modManager"
 
 export function ModsSection({
   modsView,
@@ -71,26 +44,24 @@ export function ModsSection({
           </ViewButton>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex">
           {modsView === "pak" && (
-            <div className="flex rounded-lg bg-zinc-800 p-1">
-              <button
-                onClick={onAddCategoryClick}
-                className="rounded-lg px-4 py-1 text-sm font-semibold g-zinc-800 text-zinc-400 hover:bg-zinc-700"
-              >
-                Add Category
-              </button>
-            </div>
+            <button
+              title="Add mods category"
+              onClick={onAddCategoryClick}
+              className="text-sm p-1 text-zinc-400 hover:text-pink-600"
+            >
+              <AppIcon icon={Icons.layerGroup} />
+            </button>
           )}
 
-          <div className="flex rounded-lg bg-zinc-800 p-1">
-            <button
-              onClick={onRefresh}
-              className="rounded-lg px-4 py-1 text-sm font-semibold g-zinc-800 text-zinc-400 hover:bg-zinc-700"
-            >
-              Refresh
-            </button>
-          </div>
+          <button
+            title="Refresh mods data"
+            onClick={onRefresh}
+            className="text-sm p-1 text-zinc-400 hover:text-pink-600"
+          >
+            <AppIcon icon={Icons.refresh} />
+          </button>
         </div>
       </div>
 
@@ -220,14 +191,14 @@ function PakModsList({
     }
 
     if (enabledCount === 0) {
-      return "No mods enabled"
+      return `All ${totalCount} mods Disabled`
     }
 
     if (enabledCount === totalCount) {
-      return `All ${totalCount} mods enabled`
+      return `All ${totalCount} mods Enabled`
     }
 
-    return `${enabledCount} of ${totalCount} mods enabled`
+    return `${enabledCount} of ${totalCount} mods Enabled`
   }
   
   return (

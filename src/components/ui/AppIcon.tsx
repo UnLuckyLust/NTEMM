@@ -1,17 +1,11 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
-import type { IconProp } from "@fortawesome/fontawesome-svg-core"
-
-type Props = {
-  icon: IconProp
-  className?: string
-  title?: string
-}
+import { AppIconProps } from "@/types/app"
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ")
 }
 
-export default function AppIcon({ icon, className, title }: Props) {
+export default function AppIcon({ icon, className, title }: AppIconProps) {
   return (
     <FontAwesomeIcon
       icon={icon}

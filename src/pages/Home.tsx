@@ -10,8 +10,9 @@ import { useModManager } from "@/hooks/useModManager"
 import { HudScaleCard } from "@/components/home/HudScaleCard"
 import { AnticensorCard } from "@/components/home/AnticensorCard"
 import { UiModsCard } from "@/components/home/UiModsCard"
+import { HomeProps } from "@/interfaces/app"
 
-export default function Home() {
+export default function Home({ /* onOpenGameBanana */ }: HomeProps) {
   const { state, actions } = useModManager()
   const [gamePath, setGamePath] = useState(() => localStorage.getItem("gameFolder") ?? "")
 

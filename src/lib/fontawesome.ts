@@ -54,6 +54,17 @@ import {
   faFileArrowDown,
   faFileCirclePlus,
   faFolderPlus,
+  faDownLeftAndUpRightToCenter,
+  faUpRightAndDownLeftFromCenter,
+  faPanorama,
+  faImages,
+  faRotate,
+  faClockRotateLeft,
+  faTags,
+  faObjectGroup,
+  faPuzzlePiece,
+  faDownload,
+  faArrowUpRightFromSquare,
 } from "@fortawesome/free-solid-svg-icons"
 
 import { faSquare } from "@fortawesome/free-regular-svg-icons"
@@ -115,6 +126,18 @@ library.add(
   faFileArrowDown,
   faFileCirclePlus,
   faFolderPlus,
+  faDownLeftAndUpRightToCenter,
+  faUpRightAndDownLeftFromCenter,
+  faPanorama,
+  faImages,
+  faRotate,
+  faClockRotateLeft,
+  faTags,
+  faObjectGroup,
+  faPuzzlePiece,
+  faHeart,
+  faDownload,
+  faArrowUpRightFromSquare,
   
   faSquare,
 

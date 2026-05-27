@@ -17,10 +17,13 @@ export default defineConfig(async () => ({
       "@lib": path.resolve(__dirname, "./src/lib"),
       "@pages": path.resolve(__dirname, "./src/pages"),
       "@types": path.resolve(__dirname, "./src/types"),
+      "@interfaces": path.resolve(__dirname, "./src/interfaces"),
       "@assets": path.resolve(__dirname, "./src/assets"),
       "@hooks": path.resolve(__dirname, "./src/hooks"),
       "@helpers": path.resolve(__dirname, "./src/helpers"),
       "@data": path.resolve(__dirname, "./src/data"),
+      "@utils": path.resolve(__dirname, "./src/utils"),
+      "@api": path.resolve(__dirname, "./src/api"),
     },
   },
 

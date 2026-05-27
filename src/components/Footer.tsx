@@ -32,7 +32,7 @@ export default function Footer() {
 
             <button
                 onClick={() =>
-                openUrl("https://gamebanana.com/members/5097255")
+                openUrl("https://gamebanana.com/tools/22823")
                 }
                 // className="text-zinc-400 transition hover:text-pink-900 text-lg"
                 title="GameBanana"

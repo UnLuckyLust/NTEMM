@@ -1,17 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { emit } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-
-type PopupData = {
-  title?: string;
-  message: string;
-  kind: "info" | "warning" | "success" | "error";
-  timer?: number;
-  timerTo?: "yes" | "no";
-  okLabel?: string;
-  isCancel?: boolean;
-  cancelLabel?: string;
-};
+import { PopupData } from "@/types/app";
 
 export default function PopupWindow() {
   const params = new URLSearchParams(window.location.search);

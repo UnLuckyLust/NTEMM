@@ -6,11 +6,15 @@ import { check, type Update } from "@tauri-apps/plugin-updater"
 import AppLayout from "@/layout/AppLayout"
 import Settings from "@/pages/Settings"
 import Home from "@/pages/Home"
+import GameBanana from "@/pages/GameBanana"
 import { CHANGELOG_BY_VERSION } from "@/data/changelog"
 import { dialog } from "@/lib/dialog";
+import { AppPage } from "./types/app"
 
 export default function App() {
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [activePage, setActivePage] = useState<AppPage>("home")
+  const isSettingsOpen = activePage === "settings"
+  const isGameBananaOpen = activePage === "gamebanana"
 
   const [availableUpdate, setAvailableUpdate] = useState<Update | null>(null)
   const [updateStatus, setUpdateStatus] = useState("")
@@ -23,7 +27,11 @@ export default function App() {
   const warnedRef = useRef(false)
 
   function toggleSettings() {
-    setIsSettingsOpen((prev) => !prev)
+    setActivePage((prev) => (prev === "settings" ? "home" : "settings"))
+  }
+
+  function toggleGameBanana() {
+    setActivePage((prev) => (prev === "gamebanana" ? "home" : "gamebanana"))
   }
 
   async function installUpdate() {
@@ -111,7 +119,7 @@ export default function App() {
           message: "Please select your Neverness to Everness game folder in Settings before using NTEMM",
           kind: "warning",
         });
-        setIsSettingsOpen(true)
+        setActivePage("settings")
         return
       }
 
@@ -127,7 +135,7 @@ export default function App() {
             kind: "warning",
           });
 
-          setIsSettingsOpen(true)
+          setActivePage("settings")
         }
       } catch {
         warnedRef.current = true
@@ -137,7 +145,7 @@ export default function App() {
           kind: "error",
         });
 
-        setIsSettingsOpen(true)
+        setActivePage("settings")
       }
     }
 
@@ -156,9 +164,17 @@ export default function App() {
       
       <AppLayout
         onOpenSettings={toggleSettings}
+        onOpenGameBanana={toggleGameBanana}
         isSettingsOpen={isSettingsOpen}
+        isGameBananaOpen={isGameBananaOpen}
       >
-        {isSettingsOpen ? <Settings onBackHome={() => setIsSettingsOpen(false)} /> : <Home />}
+        {activePage === "settings" ? (
+          <Settings onBackHome={() => setActivePage("home")} />
+        ) : activePage === "gamebanana" ? (
+          <GameBanana onBackHome={() => setActivePage("home")} />
+        ) : (
+          <Home onOpenGameBanana={() => setActivePage("gamebanana")} />
+        )}
       </AppLayout>
 
       {availableUpdate && (

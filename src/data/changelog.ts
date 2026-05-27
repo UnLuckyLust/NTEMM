@@ -30,5 +30,16 @@ export const CHANGELOG_BY_VERSION: Record<string, string[]> = {
     "Improved admin permission handling when the game is installed on the C: drive.",
     "Fixed an issue where applying changes or installing loader files could fail when the game folder was under the C: drive.",
     "Fixed an issue where multiple NTEMM windows could be opened at the same time."
+  ],
+  "1.2.0": [
+    "Updated several UI elements to use clearer icons instead of plain text.",
+    "Improved mod cards to show the most relevant mod data while collapsed.",
+    "Improved ASI mod cleanup to also remove matching .log files when available.",
+    "Added support for mod preview images.",
+    "Added automatic closing for common alert popups.",
+    "Added early GameBanana integration preparation for a future built-in mod browser.",
+    "Fixed CN version loader compatibility after the 27/05/2026 launcher update.",
+    "Fixed Anticensor status detection so it reflects the actual installed file state.",
+    "Fixed UI mods status detection so installed mods stay correctly shown even when loader files are missing."
   ]
 }

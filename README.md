@@ -56,6 +56,28 @@ The manager automatically organizes supported files into the correct game locati
 - Integrated HUD/UI scale editor with automatic `Engine.ini` detection
 - Optional bundled UID hider mod
 
+## For Mod Creators
+NTEMM supports an optional `mod.json` metadata file.
+Adding a `mod.json` file to your mod folder allows the manager to automatically display extra information inside the app, such as the mod name, author, version, description, tags, and related links.
+
+### Example `mod.json`
+```json
+{
+  "name": "ModName",
+  "version": "1.0.0",
+  "author": "AuthorName",
+  "description": "Short description of the mod.",
+  "modLink": "https://gamebanana.com/tools/22823",
+  "supportLink": "https://ko-fi.com/unluckylust",
+  "tags": ["Character", "Skin", "SFW"]
+}
+```
+
+### Preview Images
+You can include preview images with your mod so NTEMM can show them directly inside the app.
+To add previews, simply place the images next to the mod files and make sure their file names contain `preview`.
+Supported image formats include: .png | .jpg | .jpeg | .webp | .gif | .bmp | .avif
+
 ## Important Notes
 > [!NOTE]
 > Since the application is currently unsigned, Windows Defender or SmartScreen may display a warning when launching the app for the first time, This is normal for many indie and open-source applications.

@@ -53,6 +53,42 @@ pub fn ext(path: &Path) -> String {
         .unwrap_or_default()
 }
 
+pub fn is_preview_image_file_name(name: &std::ffi::OsStr) -> bool {
+    let name = name.to_string_lossy().to_lowercase();
+
+    if !name.contains("preview") {
+        return false;
+    }
+
+    let ext = Path::new(name.as_str())
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .unwrap_or_default();
+
+    matches!(
+        ext.as_str(),
+        "png" | "jpg" | "jpeg" | "webp" | "gif" | "bmp" | "avif"
+    )
+}
+
+pub fn is_preview_image_file(path: &Path) -> bool {
+    path.file_name()
+        .map(is_preview_image_file_name)
+        .unwrap_or(false)
+}
+
+fn is_mod_payload_file(path: &Path) -> bool {
+    matches!(
+        ext(path).as_str(),
+        "pak" | "ucas" | "utoc" | "asi"
+    )
+}
+
+fn has_mod_payload(files: &[PathBuf]) -> bool {
+    files.iter().any(|file| is_mod_payload_file(file))
+}
+
 fn validate_pak_sets(files: &[PathBuf]) -> Result<(), String> {
     let mut grouped: HashMap<String, HashSet<String>> = HashMap::new();
 
@@ -111,7 +147,7 @@ fn is_supported_file(path: &Path) -> bool {
     matches!(
         ext(path).as_str(),
         "pak" | "ucas" | "utoc" | "asi" | "ini" | "json"
-    )
+    ) || is_preview_image_file(path)
 }
 
 fn collect_supported_files(root: &Path, out: &mut Vec<PathBuf>) {
@@ -269,6 +305,11 @@ pub async fn analyze_import_paths(
         if source_files.is_empty() {
             let _ = fs::remove_dir_all(&temp_dir);
             return Err("No supported mod files found. Supports ZIP/RAR/7Z, folders, ASI mods, and complete PAK + UCAS + UTOC sets".into());
+        }
+
+        if !has_mod_payload(&source_files) {
+            let _ = fs::remove_dir_all(&temp_dir);
+            return Err("No mod files found. Preview images must be imported together with PAK or ASI mod files".into());
         }
 
         validate_pak_sets(&source_files)?;
@@ -430,6 +471,7 @@ fn stored_mod_file_names(mod_dir: &Path) -> Result<Vec<String>, String> {
             || file_name.eq_ignore_ascii_case("icon.png")
             || file_name.eq_ignore_ascii_case("desktop.ini")
             || file_name.eq_ignore_ascii_case("mod.json")
+            || is_preview_image_file_name(&entry.file_name())
         {
             continue;
         }
@@ -553,6 +595,10 @@ pub async fn import_mod_paths(
             return Err("No supported mod files found. Supports ZIP/RAR/7Z, folders, ASI mods, and complete PAK + UCAS + UTOC sets".into());
         }
 
+        if !has_mod_payload(&source_files) {
+            return Err("No mod files found. Preview images must be imported together with PAK or ASI mod files".into());
+        }
+
         validate_pak_sets(&source_files)?;
         validate_ini_requires_asi(&source_files)?;
 
@@ -632,6 +678,10 @@ pub async fn validate_mod_paths(app: tauri::AppHandle, paths: Vec<String>) -> Re
 
         if source_files.is_empty() {
             return Err("No supported mod files found. Supports ZIP/RAR/7Z, folders, ASI mods, and complete PAK + UCAS + UTOC sets".into());
+        }
+
+        if !has_mod_payload(&source_files) {
+            return Err("No mod files found. Preview images must be imported together with PAK or ASI mod files".into());
         }
 
         validate_pak_sets(&source_files)?;

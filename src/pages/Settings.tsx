@@ -7,10 +7,7 @@ import AppIcon from "@/components/ui/AppIcon"
 import { Icons } from "@/lib/icons"
 import { GameFolderCheck, LoaderFilesCheck } from "@/types/modManager"
 import { dialog } from "@/lib/dialog"
-
-interface SettingsProps {
-  onBackHome: () => void
-}
+import { SettingsProps } from "@/interfaces/app"
 
 export default function Settings({ onBackHome }: SettingsProps) {
   const [gamePath, setGamePath] = useState("")

@@ -479,6 +479,8 @@ export function useModManager() {
         title: current.valid ? "Loader Uninstalled" : "Loader Installed",
         message: current.valid ? "Loader files removed successfully" : "Loader files installed successfully",
         kind: "success",
+        timer: 10,
+        timerTo: "yes"
       });
     } catch (err) {
       await dialog({
@@ -538,6 +540,8 @@ export function useModManager() {
         title: "Clean Complete",
         message: "All files were removed from the game folder",
         kind: "success",
+        timer: 30,
+        timerTo: "yes"
       })
     } catch (err) {
       await dialog({
@@ -588,6 +592,8 @@ export function useModManager() {
             title: "Loader Update",
             message: "Loader files updated successfully",
             kind: "success",
+            timer: 10,
+            timerTo: "yes"
           });
         } else {
           localStorage.removeItem('loaderVersions');
@@ -670,6 +676,8 @@ export function useModManager() {
         title: "Apply Complete",
         message: "Mod changes applied successfully",
         kind: "success",
+        timer: 10,
+        timerTo: "yes"
       });
     } catch (err) {
       await dialog({

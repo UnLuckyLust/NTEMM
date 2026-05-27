@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::app::utils::copy_if_changed;
-use crate::mods::import::ext;
+use crate::mods::import::{ext, is_preview_image_file_name};
 use crate::mods::import::get_mod_storage_root;
 
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -44,6 +44,7 @@ pub struct ImportedMod {
     pub path: String,
     pub files: Vec<String>,
     pub icon_path: Option<String>,
+    pub preview_image_paths: Vec<String>,
     pub metadata: Option<ModMetadata>,
     pub metadata_error: Option<String>,
 }
@@ -88,12 +89,13 @@ fn load_mod_metadata(mod_path: &Path) -> (Option<ModMetadata>, Option<String>) {
 }
 
 fn is_internal_pak_helper_file(name: &std::ffi::OsStr) -> bool {
-    let name = name.to_string_lossy();
+    let name_text = name.to_string_lossy();
 
-    name.eq_ignore_ascii_case("icon.ico")
-        || name.eq_ignore_ascii_case("icon.png")
-        || name.eq_ignore_ascii_case("desktop.ini")
-        || name.eq_ignore_ascii_case("mod.json")
+    name_text.eq_ignore_ascii_case("icon.ico")
+        || name_text.eq_ignore_ascii_case("icon.png")
+        || name_text.eq_ignore_ascii_case("desktop.ini")
+        || name_text.eq_ignore_ascii_case("mod.json")
+        || is_preview_image_file_name(name)
 }
 
 fn game_targets(game_root: &Path) -> GameTargets {
@@ -132,6 +134,30 @@ fn get_mod_files(mod_dir: &Path) -> Result<Vec<PathBuf>, String> {
     }
 
     Ok(files)
+}
+
+fn get_preview_image_paths(mod_dir: &Path) -> Result<Vec<String>, String> {
+    let mut images = Vec::new();
+
+    for entry in fs::read_dir(mod_dir).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+
+        if !path.is_file() {
+            continue;
+        }
+
+        let Some(file_name) = path.file_name() else {
+            continue;
+        };
+
+        if is_preview_image_file_name(file_name) {
+            images.push(path.to_string_lossy().to_string());
+        }
+    }
+
+    images.sort_by_key(|path| path.to_lowercase());
+    Ok(images)
 }
 
 fn read_stored_mods(storage_root: &Path) -> Result<Vec<StoredMod>, String> {
@@ -388,12 +414,14 @@ pub async fn list_imported_mods(app: tauri::AppHandle) -> Result<Vec<ImportedMod
             };
             
             let (metadata, metadata_error) = load_mod_metadata(&path);
+            let preview_image_paths = get_preview_image_paths(&path)?;
 
             mods.push(ImportedMod {
                 name,
                 path: path.to_string_lossy().to_string(),
                 files,
                 icon_path,
+                preview_image_paths,
                 metadata,
                 metadata_error,
             });

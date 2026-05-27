@@ -3,6 +3,7 @@ use tauri::Manager;
 pub mod app;
 mod game;
 mod mods;
+mod gamebanana;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -48,6 +49,8 @@ pub fn run() {
             mods::anticensor::set_anticensor_mod,
             mods::ui_mods::check_ui_mods,
             mods::ui_mods::set_ui_mod,
+            gamebanana::api::get_nte_mods,
+            gamebanana::api::get_mod_details
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
