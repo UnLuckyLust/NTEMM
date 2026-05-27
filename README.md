@@ -1,7 +1,7 @@
 <h1 align="center">NTE Mod Manager</h1>
 
 <p align="center">
-  <a href="https://www.virustotal.com/gui/file/ba3161776268d5da4e4505f1ac16c1f211b0c100c0c312c05f3e4007ebd9d782">
+  <a href="https://www.virustotal.com/gui/file/a28823e1443b2294c0a6a3182de70e787ca0c07f58760724acd93303bc65ca1d">
     <img src="https://img.shields.io/badge/VirusTotal-Scan-blue?style=for-the-badge&logo=virustotal" />
   </a>
 </p>
@@ -14,7 +14,7 @@
   Easily install, organize and manage your mods with a clean desktop interface.
 </p>
 
-<img width="1378" height="1001" alt="NTEMM" src="https://github.com/user-attachments/assets/56ed75aa-284f-463b-812f-3733a175d030" />
+<img width="2560" height="1440" alt="HomePage" src="https://github.com/user-attachments/assets/1e26f90b-6ade-4abe-933c-98c0fa0bd517" />
 
 ## About
 NTE Mod Manager is a lightweight desktop application designed to make modding Neverness to Everness easier and more organized.
@@ -74,9 +74,9 @@ Adding a `mod.json` file to your mod folder allows the manager to automatically 
 ```
 
 ### Preview Images
-You can include preview images with your mod so NTEMM can show them directly inside the app.
-To add previews, simply place the images next to the mod files and make sure their file names contain `preview`.
-Supported image formats include: .png | .jpg | .jpeg | .webp | .gif | .bmp | .avif
+NTEMM supports an option to include preview images with mods so they can be displayed directly inside the app.
+<br/>To add previews, simply place the images next to the mod files and make sure their file names contain `preview`.
+<br/>Supported image formats include: .png | .jpg | .jpeg | .webp | .gif | .bmp | .avif
 
 ## Important Notes
 > [!NOTE]
