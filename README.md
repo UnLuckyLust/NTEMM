@@ -1,7 +1,7 @@
 <h1 align="center">NTE Mod Manager</h1>
 
 <p align="center">
-  <a href="https://www.virustotal.com/gui/file/a28823e1443b2294c0a6a3182de70e787ca0c07f58760724acd93303bc65ca1d">
+  <a href="https://www.virustotal.com/gui/file/45b2b11f0207868dc2364f4cc580d622df8edb7fd4b565363c542996b83230b7">
     <img src="https://img.shields.io/badge/VirusTotal-Scan-blue?style=for-the-badge&logo=virustotal" />
   </a>
 </p>
@@ -14,7 +14,7 @@
   Easily install, organize and manage your mods with a clean desktop interface.
 </p>
 
-<img width="2560" height="1440" alt="HomePage" src="https://github.com/user-attachments/assets/e5cb8722-08de-44b3-9815-66480c3dd0b3" />
+<img width="2560" height="1439" alt="NTEMM_HomePage" src="https://github.com/user-attachments/assets/7c107087-0e87-44db-adb2-5649ff1b2a13" />
 
 ## About
 NTE Mod Manager is a lightweight desktop application designed to make modding Neverness to Everness easier and more organized.
