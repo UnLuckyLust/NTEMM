@@ -24,6 +24,10 @@ import {
   readLoaderProxyConfig,
   writeLoaderProxyConfig,
 } from "@/helpers/loaderProxySettings"
+import {
+  removeStoredLoaderVersions,
+  saveStoredLoaderVersions,
+} from "@/helpers/modStorage"
 
 const SAVED_GAME_INSTALLS_KEY = "savedGameInstalls"
 const GAME_VERSIONS = ["global", "cn", "tw"] as const
@@ -463,9 +467,9 @@ export default function Settings({ onBackHome }: SettingsProps) {
       setLoaderCheck(result)
 
       if (result.valid) {
-        localStorage.setItem("loaderVersions", JSON.stringify(loaderVersions))
+        saveStoredLoaderVersions(loaderVersions, currentLoaderProxyVersion)
       } else {
-        localStorage.removeItem("loaderVersions")
+        removeStoredLoaderVersions(currentLoaderProxyVersion)
       }
 
       window.dispatchEvent(new Event("loaderProxyConfigChanged"))

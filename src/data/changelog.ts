@@ -51,5 +51,11 @@ export const CHANGELOG_BY_VERSION: Record<string, string[]> = {
     "Added saved game install switching for Global, CN, and TW versions.",
     "Added customizable loader proxy DLL names per game version.",
     "Added support for custom loader proxy names."
+  ],
+  "1.3.1": [
+    "Improved saved mods and loader state handling per game version.",
+    "Fixed clean, reset, and remove actions to affect only the active game version.",
+    "Fixed applied mod tracking when switching between Global, CN, and TW.",
+    "Fixed unnecessary loader update prompts for unrelated game versions."
   ]
 }

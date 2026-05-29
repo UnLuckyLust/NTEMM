@@ -52,6 +52,7 @@ export type CategoryMoveDirection = "up" | "down"
 
 export type GameVersion = "global" | "cn" | "tw"
 export type SavedGameInstalls = Partial<Record<GameVersion, string>>
+export type VersionedStorage<T> = Partial<Record<GameVersion, T>>
 
 export type GameFolderCheck = {
   valid: boolean

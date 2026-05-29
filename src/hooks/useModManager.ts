@@ -36,11 +36,14 @@ import {
   loadCollapsedUncategorized,
   loadCollapsedPakCategories,
   loadPakCategories,
+  loadStoredLoaderVersions,
   loadUncategorizedPakMods,
+  removeStoredLoaderVersions,
   saveAppliedPakInstallLocationByMod,
   saveCollapsedUncategorized,
   saveCollapsedPakCategories,
   savePakCategories,
+  saveStoredLoaderVersions,
   saveUncategorizedPakMods,
   shouldCloseOnLaunch,
 } from "@/helpers/modStorage"
@@ -62,7 +65,7 @@ import {
 } from "@/helpers/loaderProxySettings"
 import { setPakModIcon, clearPakModIcon } from "@/helpers/folderIcons"
 
-function isKnownGameVersion(version: GameFolderCheck["gameVersion"]): version is GameVersion {
+function isKnownGameVersion(version: unknown): version is GameVersion {
   return version === "global" || version === "cn" || version === "tw"
 }
 
@@ -99,7 +102,7 @@ export function useModManager() {
   const [anticensorInstalled, setAnticensorInstalled] = useState(false)
   const [anticensorSelected, setAnticensorSelected] = useState(false)
   const [isRunningAsAdmin, setIsRunningAsAdmin] = useState(false)
-  const [gameVersion, setGameVersion] = useState<string | null>(null)
+  const [gameVersion, setGameVersion] = useState<GameVersion | null>(null)
 
   const importingRef = useRef(false)
   const validatingDropRef = useRef(false)
@@ -210,6 +213,7 @@ export function useModManager() {
 
     if (!gameFolder) {
       setGameVersion(null)
+      setAppliedPakInstallLocationByMod({})
       return
     }
 
@@ -218,9 +222,15 @@ export function useModManager() {
         path: gameFolder,
       })
 
-      setGameVersion(result.valid ? result.gameVersion : null)
+      const nextVersion = result.valid && isKnownGameVersion(result.gameVersion)
+        ? result.gameVersion
+        : null
+
+      setGameVersion(nextVersion)
+      setAppliedPakInstallLocationByMod(loadAppliedPakInstallLocationByMod(nextVersion))
     } catch {
       setGameVersion(null)
+      setAppliedPakInstallLocationByMod({})
     }
   }, [])
 
@@ -560,9 +570,11 @@ export function useModManager() {
       setLoaderCheck(result)
 
       if (current.valid) {
-        localStorage.removeItem("loaderVersions")
+        removeStoredLoaderVersions(isKnownGameVersion(gameVersion) ? gameVersion : null)
       } else {
-        localStorage.setItem("loaderVersions", JSON.stringify(loaderVersions))
+        saveStoredLoaderVersions(loaderVersions,
+          isKnownGameVersion(gameVersion) ? gameVersion : null,
+        )
       }
 
       await dialog({
@@ -622,8 +634,10 @@ export function useModManager() {
       setAnticensorInstalled(false)
       setAnticensorSelected(false)
 
-      localStorage.removeItem("loaderVersions")
-      saveAppliedPakInstallLocationByMod({})
+      removeStoredLoaderVersions(isKnownGameVersion(gameVersion) ? gameVersion : null)
+      saveAppliedPakInstallLocationByMod({},
+        isKnownGameVersion(gameVersion) ? gameVersion : null,
+      )
       setAppliedPakInstallLocationByMod({})
 
       await loadModStatuses()
@@ -645,86 +659,100 @@ export function useModManager() {
     }
   }, [loadModStatuses, refreshBundledMods])
   
-  const checkLoaderVersion = async (gameFolder: string, currentLoaderCheck: LoaderFilesCheck) => {
-    if (!currentLoaderCheck.valid) return currentLoaderCheck;
+  const checkLoaderVersion = async (
+    gameFolder: string,
+    currentLoaderCheck: LoaderFilesCheck,
+    currentGameVersion: GameVersion | null,
+  ) => {
+    if (!currentLoaderCheck.valid || !currentGameVersion) return currentLoaderCheck
 
-    const storedVersions = localStorage.getItem("loaderVersions");
-    const currentVersions = loaderVersions;
-    
-    const needsUpdate = storedVersions ? (() => {
-      const stored = JSON.parse(storedVersions);
-      
-      return (
-        stored.asi !== currentVersions.asi ||
-        stored.dll !== currentVersions.dll ||
-        stored.sub_dll !== currentVersions.sub_dll
-      );
-    })() : true;
+    const storedVersions = loadStoredLoaderVersions(currentGameVersion)
+    const currentVersions = loaderVersions
 
-    if (needsUpdate) {
+    const needsUpdate = storedVersions
+      ? storedVersions.asi !== currentVersions.asi ||
+        storedVersions.dll !== currentVersions.dll ||
+        storedVersions.sub_dll !== currentVersions.sub_dll
+      : true
 
-      const updateConfirmed = await dialog({
-        title: "Loader Update Available",
-        message: "New version of loader files available\nWould you like to update them?",
-        kind: "warning",
-        isCancel: true,
-        okLabel: "Update",
-        cancelLabel: "Later",
-        timer: 59,
+    if (!needsUpdate) return currentLoaderCheck
+
+    const updateConfirmed = await dialog({
+      title: "Loader Update Available",
+      message: "New version of loader files available\nWould you like to update them?",
+      kind: "warning",
+      isCancel: true,
+      okLabel: "Update",
+      cancelLabel: "Later",
+      timer: 59,
+      timerTo: "yes",
+    })
+
+    if (!updateConfirmed.ok) return currentLoaderCheck
+
+    const { proxyDllNames, allProxyDllNames } = await getCurrentLoaderProxyPayload(gameFolder)
+
+    const result = await invoke<LoaderFilesCheck>("install_loader_files", {
+      path: gameFolder,
+      proxyDllNames,
+      allProxyDllNames,
+    })
+
+    if (result.valid) {
+      saveStoredLoaderVersions(currentVersions, currentGameVersion)
+
+      await dialog({
+        title: "Loader Update",
+        message: "Loader files updated successfully",
+        kind: "success",
+        timer: 10,
         timerTo: "yes",
-      });
-      
-      if (updateConfirmed.ok) {
-        const { proxyDllNames, allProxyDllNames } = await getCurrentLoaderProxyPayload(gameFolder)
+      })
+    } else {
+      removeStoredLoaderVersions(currentGameVersion)
 
-        const result = await invoke<LoaderFilesCheck>("install_loader_files", {
-          path: gameFolder,
-          proxyDllNames,
-          allProxyDllNames,
-        });
-        
-        if (result.valid) {
-          localStorage.setItem("loaderVersions", JSON.stringify(currentVersions));
-          await dialog({
-            title: "Loader Update",
-            message: "Loader files updated successfully",
-            kind: "success",
-            timer: 10,
-            timerTo: "yes"
-          });
-        } else {
-          localStorage.removeItem('loaderVersions');
-          await dialog({
-            title: "Loader Update",
-            message: "Loader files faild to update",
-            kind: "error",
-          });
-        }
-        return result;
-      }
+      await dialog({
+        title: "Loader Update",
+        message: "Loader files faild to update",
+        kind: "error",
+      })
     }
-    
-    return currentLoaderCheck;
-  };
+
+    return result
+  }
 
   const refreshLoaderCheck = useCallback(async () => {
-    const gameFolder = getGameFolder();
+    const gameFolder = getGameFolder()
 
     if (!gameFolder) {
-      setLoaderCheck(null);
-      return;
+      setLoaderCheck(null)
+      return
     }
+
+    const folderCheck = await invoke<GameFolderCheck>("check_game_folder", {
+      path: gameFolder,
+    })
+
+    const currentGameVersion =
+      folderCheck.valid && isKnownGameVersion(folderCheck.gameVersion)
+        ? folderCheck.gameVersion
+        : null
 
     const { proxyDllNames } = await getCurrentLoaderProxyPayload(gameFolder)
 
     const result = await invoke<LoaderFilesCheck>("check_loader_files", {
       path: gameFolder,
       proxyDllNames,
-    });
+    })
 
-    const versionCheckedResult = await checkLoaderVersion(gameFolder, result);
-    setLoaderCheck(versionCheckedResult);
-  }, []);
+    const versionCheckedResult = await checkLoaderVersion(
+      gameFolder,
+      result,
+      currentGameVersion,
+    )
+
+    setLoaderCheck(versionCheckedResult)
+  }, [])
 
   useEffect(() => {
     function onLoaderProxyConfigChanged() {
@@ -796,7 +824,9 @@ export function useModManager() {
 
       const appliedLocations = getAppliedPakInstallLocations(active, pakCategories)
       setAppliedPakInstallLocationByMod(appliedLocations)
-      saveAppliedPakInstallLocationByMod(appliedLocations)
+      saveAppliedPakInstallLocationByMod(appliedLocations,
+        isKnownGameVersion(gameVersion) ? gameVersion : null,
+      )
 
       await loadModStatuses()
       await refreshBundledMods()
@@ -1112,7 +1142,7 @@ export function useModManager() {
     setPakCategories(savedCategories)
     setCollapsedUncategorized(loadCollapsedUncategorized())
     setCollapsedPakCategories(loadCollapsedPakCategories())
-    setAppliedPakInstallLocationByMod(loadAppliedPakInstallLocationByMod())
+    setAppliedPakInstallLocationByMod(loadAppliedPakInstallLocationByMod(gameVersion))
     setLastValidCategoryNames(Object.fromEntries(savedCategories.map((category) => [category.id, category.name])))
     setUncategorizedPakMods(loadUncategorizedPakMods())
   }, [])

@@ -1,11 +1,11 @@
 {
-  "version": "1.3.0",
-  "notes": "NTEMM v1.3.0\n\n- Reworked mod importing to support complex nested mods.\n- Improved mod update handling so installed mods are refreshed in the game folder automatically.\n- Improved game folder reset so it restores the default path and rechecks the game files automatically.\n- Improved loader detection, install, uninstall, and clean logic to respect selected/custom proxy names.\n- Added a 'Reading file' state to prevent extra import actions while files are being read or imported.\n- Added saved game install switching for Global, CN, and TW versions.\n- Added customizable loader proxy DLL names per game version.\n- Added support for custom loader proxy names.",
-  "pub_date": "2026-05-29T11:13:55.269Z",
+  "version": "1.3.1",
+  "notes": "NTEMM v1.3.1\n\n- Improved saved mods and loader state handling per game version.\n- Fixed clean, reset, and remove actions to affect only the active game version.\n- Fixed applied mod tracking when switching between Global, CN, and TW.\n- Fixed unnecessary loader update prompts for unrelated game versions.",
+  "pub_date": "2026-05-29T14:34:44.508Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUeDVHeGIxQktqSUVOTk8rdk1jTDJCYmFzZjBvWktueXBuSkRBNTFqa2NGdGwwM2NxVnBUbDluYjYrbTBrOUpMR2ZZVFNPOVJLNmhmMXE4aFBQMmlTb0NkRDdlRFFBSmdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMDUzMjMzCWZpbGU6TlRFTU1fMS4zLjBfeDY0LXNldHVwLmV4ZQoybXZmc1B4SEdlTVhSdFZmZHlyRktCZG1TZVBudU5QdTBzTjdCc2xuUlIzV2ZQeGFCN3pUTkxkamRSQW80RS9FRGNQWnRzU0hLb0lTVjNnSi9iN2NEUT09Cg==",
-      "url": "https://github.com/UnLuckyLust/NTEMM/releases/download/v1.3.0/NTEMM_1.3.0_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUeDVHeGIxQktqSUFLTzN4VE9wMUI2UXd0U0p4N2J6S2poTHJTQVFiam8yMytKZEpJQ0Fxd1R3cW9BdEJnZ1dRdm8wTGV2K3RBSUdzMU5jeUQ4Sy94SEl3T3NJTnVYZHdvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMDY1MjgyCWZpbGU6TlRFTU1fMS4zLjFfeDY0LXNldHVwLmV4ZQpyQytCdDN1d2NrenlmR0t3UDJxR0JjVFU0YWpkeFA2MXFhc01jeVQ1OVhkeWo1NjFhR0NuTzVRbW00TjA4V1ZYbmxGbUwwZ3pYTkxRYjN6Ums5NjBCUT09Cg==",
+      "url": "https://github.com/UnLuckyLust/NTEMM/releases/download/v1.3.1/NTEMM_1.3.1_x64-setup.exe"
     }
   }
 }
