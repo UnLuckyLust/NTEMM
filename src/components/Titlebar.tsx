@@ -52,7 +52,7 @@ function useOneShotAnimation(duration = 600) {
   return [active, trigger, stop] as const
 }
 
-export default function Titlebar({ onOpenSettings, isSettingsOpen /*, onOpenGameBanana, isGameBananaOpen */ }: TitlebarProps) {
+export default function Titlebar({ onOpenSettings, isSettingsOpen, /* onOpenGameBanana, isGameBananaOpen */ }: TitlebarProps) {
   const [isMaximized, setIsMaximized] = useState(false)
   const [animateMin, triggerMin, stopMin] = useOneShotAnimation(800)
   const [animateMax, triggerMax, stopMax] = useOneShotAnimation(800)
@@ -126,7 +126,7 @@ export default function Titlebar({ onOpenSettings, isSettingsOpen /*, onOpenGame
           onMouseLeave={stopGB}
           onClick={onOpenGameBanana}
           className={`${iconBtn} ${
-            isGameBananaOpen ? iconVariants.yellow : iconVariants.yellow
+            isGameBananaOpen ? iconVariants.red : iconVariants.yellow
           }`}
         >
           <AppIcon

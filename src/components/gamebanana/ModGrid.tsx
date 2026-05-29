@@ -11,8 +11,8 @@ export default function GameBananaModGrid({
   onOpenDetails,
 }: GameBananaModGridProps) {
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto pt-4 pr-1">
-      <div className="grid grid-cols-5 gap-3">
+    <div className="min-h-0 flex-1 overflow-y-auto pt-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
         {mods.map((mod) => (
           <ModCard
             key={mod.id}

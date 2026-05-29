@@ -213,8 +213,8 @@ export default function App() {
 
       {isChangelogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
-          <div className="flex max-h-[calc(100vh-10rem)] w-full max-w-md flex-col rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl">
-            <h2 className="text-lg font-bold text-pink-500">What&apos;s New
+          <div className="flex max-h-[calc(100vh-10rem)] w-max max-w-180 flex-col rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl">
+            <h2 className="text-lg font-bold text-pink-500 text-center">What&apos;s New
               <span className="text-xs text-zinc-400"> in </span>
               NTEMM
               <span className="text-xs text-zinc-400"> v{changelogVersion}</span>

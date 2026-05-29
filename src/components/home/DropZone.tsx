@@ -4,12 +4,14 @@ import { Icons } from "@/lib/icons"
 export function DropZone({
   isDragging,
   isImporting,
+  isReadingImport,
   isRunningAsAdmin,
   onOpenImportFilePicker,
   onOpenImportFolderPicker,
 }: {
   isDragging: boolean
   isImporting: boolean
+  isReadingImport: boolean
   isRunningAsAdmin: boolean
   onOpenImportFilePicker: () => void
   onOpenImportFolderPicker: () => void
@@ -18,10 +20,15 @@ export function DropZone({
     <div
       className={`w-full max-w-400 flex min-h-max flex-col items-center justify-center overflow-hidden rounded-2xl border-3 border-dotted px-6 py-4 text-center transition ${
         isDragging ? "border-pink-400 bg-pink-900" : "border-zinc-600 bg-zinc-900"
-      } ${isImporting ? "opacity-70" : ""}`}
+      } ${isImporting || isReadingImport ? "opacity-70 pointer-events-none" : ""}`}
     >
       <div className={`text-xl font-bold leading-tight ${!isRunningAsAdmin && "mb-3"}`}>
-        {isImporting ? "Importing..." : (!isRunningAsAdmin && "Drop Mods Here to Import")}
+        {isReadingImport
+          ? "Reading files..."
+          : isImporting
+            ? "Importing..."
+            : (!isRunningAsAdmin && "Drop Mods Here to Import")
+        }
       </div>
 
       <div className="flex items-center justify-center gap-2">
@@ -29,7 +36,7 @@ export function DropZone({
           <button
             type="button"
             onClick={onOpenImportFilePicker}
-            disabled={isImporting}
+            disabled={isImporting || isReadingImport}
             className="rounded-lg px-2 py-1 text-sm font-semibold g-zinc-800 text-zinc-400 hover:bg-zinc-700 w-32"
           >
             <AppIcon icon={Icons.file} /> Import Files
@@ -40,7 +47,7 @@ export function DropZone({
           <button
             type="button"
             onClick={onOpenImportFolderPicker}
-            disabled={isImporting}
+            disabled={isImporting || isReadingImport}
             className="rounded-lg px-2 py-1 text-sm font-semibold g-zinc-800 text-zinc-400 hover:bg-zinc-700 w-32"
           >
             <AppIcon icon={Icons.folder} /> Import Folder

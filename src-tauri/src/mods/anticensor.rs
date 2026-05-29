@@ -61,7 +61,7 @@ pub async fn check_anticensor_mod(path: String) -> Result<AnticensorStatus, Stri
     tauri::async_runtime::spawn_blocking(move || {
         let game_path = Path::new(&path);
         let target = anticensor_target_path(game_path);
-        let loader_check = check_loader_files_inner(&path);
+        let loader_check = check_loader_files_inner(&path, None);
 
         let installed = target.is_file();
 
@@ -136,7 +136,7 @@ pub fn set_anticensor_mod_inner(
     path: String,
     enabled: bool,
 ) -> Result<AnticensorStatus, String> {
-    let loader_check = check_loader_files_inner(&path);
+    let loader_check = check_loader_files_inner(&path, None);
 
     set_anticensor_mod_inner_with_loader_status(resource_root, path, enabled, loader_check.valid)
 }

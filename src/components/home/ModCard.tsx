@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useLayoutEffect, useRef, useState } from "react"
 import type { ImportedMod, ModUiStatus } from "@/types/modManager"
 import { convertFileSrc } from "@tauri-apps/api/core"
 import AppIcon from "../ui/AppIcon"
@@ -10,6 +10,12 @@ function getStatusClassName(status: ModUiStatus) {
   if (status === "Pending Enable") return "bg-pink-950/70 text-pink-300"
   return "bg-orange-950/70 text-orange-300"
 }
+
+const getFilesListClassName = (expanded: boolean) =>
+  [
+    "flex flex-wrap gap-1 overflow-y-auto overflow-x-hidden pr-1",
+    expanded ? "max-h-19" : "max-h-6",
+  ].join(" ")
 
 export function ModCard(props: {
   mod: ImportedMod
@@ -38,6 +44,8 @@ export function ModCard(props: {
 
   const [expanded, setExpanded] = useState(false)
   const [openPreviewIndex, setOpenPreviewIndex] = useState<number | null>(null)
+  const filesListRef = useRef<HTMLDivElement | null>(null)
+  const [filesListOverflows, setFilesListOverflows] = useState(false)
 
   const status = getModStatus(mod.name)
   const meta = mod.metadata
@@ -54,10 +62,11 @@ export function ModCard(props: {
 
   const canExpand =
     hasPreviewImages ||
+    filesListOverflows ||
     Boolean(mod.metadataError) ||
-    topSummaryType !== "tags" && hasTags ||
-    topSummaryType !== "links" && hasLinks ||
-    topSummaryType !== "description" && hasDescription ||
+    (topSummaryType !== "tags" && hasTags) ||
+    (topSummaryType !== "links" && hasLinks) ||
+    (topSummaryType !== "description" && hasDescription) ||
     topSummaryType !== "files"
 
   const openPreviewPath =
@@ -84,6 +93,32 @@ export function ModCard(props: {
       index === null ? 0 : (index + 1) % previewImages.length
     )
   }
+
+  useLayoutEffect(() => {
+    const element = filesListRef.current
+    if (!element) {
+      setFilesListOverflows(false)
+      return
+    }
+
+    const checkOverflow = () => {
+      const previousMaxHeight = element.style.maxHeight
+
+      element.style.maxHeight = "1.5rem"
+      const overflowsCollapsed = element.scrollHeight > element.clientHeight + 1
+
+      element.style.maxHeight = previousMaxHeight
+
+      setFilesListOverflows(overflowsCollapsed)
+    }
+
+    checkOverflow()
+
+    const resizeObserver = new ResizeObserver(checkOverflow)
+    resizeObserver.observe(element)
+
+    return () => resizeObserver.disconnect()
+  }, [mod.files, topSummaryType])
 
   return (
     <div
@@ -209,11 +244,12 @@ export function ModCard(props: {
                 )}
 
                 {topSummaryType === "files" && (
-                  <div className="flex max-h-24 flex-wrap gap-1 overflow-y-auto overflow-x-hidden pr-1">
+                  <div ref={filesListRef} className={getFilesListClassName(expanded)}>
                     {mod.files.map((file) => (
                       <span
                         key={file}
-                        className="rounded border border-zinc-700 bg-zinc-950 px-2 py-0.5 text-xs text-zinc-300"
+                        title={file}
+                        className="max-w-full truncate rounded border border-zinc-700 bg-zinc-950 px-2 py-0.5 text-xs text-zinc-300"
                       >
                         {file}
                       </span>
@@ -292,11 +328,12 @@ export function ModCard(props: {
               )}
 
               {topSummaryType !== "files" && (
-                <div className="flex max-h-24 flex-wrap gap-1 overflow-y-auto overflow-x-hidden pr-1">
+                <div className={getFilesListClassName(true)}>
                   {mod.files.map((file) => (
                     <span
                       key={file}
-                      className="rounded border border-zinc-700 bg-zinc-950 px-2 py-0.5 text-xs text-zinc-300"
+                      title={file}
+                      className="max-w-full truncate rounded border border-zinc-700 bg-zinc-950 px-2 py-0.5 text-xs text-zinc-300"
                     >
                       {file}
                     </span>

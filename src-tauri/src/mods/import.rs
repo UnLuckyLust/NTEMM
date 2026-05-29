@@ -1,6 +1,7 @@
 use serde::Serialize;
 use std::process::Command;
 use tauri::Manager;
+use std::ffi::OsStr;
 
 use crate::mods::folder_icon::save_mod_icon_from_ico;
 
@@ -53,7 +54,7 @@ pub fn ext(path: &Path) -> String {
         .unwrap_or_default()
 }
 
-pub fn is_preview_image_file_name(name: &std::ffi::OsStr) -> bool {
+pub fn is_preview_image_file_name(name: &OsStr) -> bool {
     let name = name.to_string_lossy().to_lowercase();
 
     if !name.contains("preview") {
@@ -72,39 +73,50 @@ pub fn is_preview_image_file_name(name: &std::ffi::OsStr) -> bool {
     )
 }
 
-pub fn is_preview_image_file(path: &Path) -> bool {
-    path.file_name()
-        .map(is_preview_image_file_name)
-        .unwrap_or(false)
+#[derive(Clone)]
+struct SourceFile {
+    path: PathBuf,
+    relative_path: PathBuf,
 }
 
 fn is_mod_payload_file(path: &Path) -> bool {
+    matches!(ext(path).as_str(), "pak" | "ucas" | "utoc" | "asi")
+}
+
+fn is_image_file(path: &Path) -> bool {
     matches!(
         ext(path).as_str(),
-        "pak" | "ucas" | "utoc" | "asi"
+        "png" | "jpg" | "jpeg" | "webp" | "gif" | "bmp" | "avif" | "ico"
     )
 }
 
-fn has_mod_payload(files: &[PathBuf]) -> bool {
-    files.iter().any(|file| is_mod_payload_file(file))
+fn has_mod_payload(files: &[SourceFile]) -> bool {
+    files.iter().any(|file| is_mod_payload_file(&file.path))
 }
 
-fn validate_pak_sets(files: &[PathBuf]) -> Result<(), String> {
-    let mut grouped: HashMap<String, HashSet<String>> = HashMap::new();
+fn validate_pak_sets(files: &[SourceFile]) -> Result<(), String> {
+    let mut grouped: HashMap<PathBuf, HashSet<String>> = HashMap::new();
 
     for file in files {
-        let e = ext(file);
+        let e = ext(&file.path);
 
         if e != "pak" && e != "ucas" && e != "utoc" {
             continue;
         }
 
+        let parent = file
+            .relative_path
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_default();
+
         let stem = file
+            .relative_path
             .file_stem()
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_default();
 
-        grouped.entry(stem).or_default().insert(e);
+        grouped.entry(parent.join(stem)).or_default().insert(e);
     }
 
     for (name, exts) in grouped {
@@ -119,10 +131,10 @@ fn validate_pak_sets(files: &[PathBuf]) -> Result<(), String> {
         if !missing.is_empty() {
             return Err(format!(
                 "PAK mod \"{}\" is incomplete.\nMissing files: {}",
-                name,
+                name.to_string_lossy(),
                 missing
                     .iter()
-                    .map(|e| format!("{}.{}", name, e))
+                    .map(|e| format!("{}.{}", name.to_string_lossy(), e))
                     .collect::<Vec<_>>()
                     .join(", ")
             ));
@@ -132,9 +144,9 @@ fn validate_pak_sets(files: &[PathBuf]) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_ini_requires_asi(files: &[PathBuf]) -> Result<(), String> {
-    let has_ini = files.iter().any(|file| ext(file) == "ini");
-    let has_asi = files.iter().any(|file| ext(file) == "asi");
+fn validate_ini_requires_asi(files: &[SourceFile]) -> Result<(), String> {
+    let has_ini = files.iter().any(|file| ext(&file.path) == "ini");
+    let has_asi = files.iter().any(|file| ext(&file.path) == "asi");
 
     if has_ini && !has_asi {
         return Err("INI files can only be imported together with an ASI file".into());
@@ -147,10 +159,55 @@ fn is_supported_file(path: &Path) -> bool {
     matches!(
         ext(path).as_str(),
         "pak" | "ucas" | "utoc" | "asi" | "ini" | "json"
-    ) || is_preview_image_file(path)
+    ) || is_image_file(path)
 }
 
-fn collect_supported_files(root: &Path, out: &mut Vec<PathBuf>) {
+fn safe_relative_path(base: &Path, path: &Path) -> Option<PathBuf> {
+    let relative = path.strip_prefix(base).ok()?.to_path_buf();
+
+    if relative
+        .components()
+        .any(|part| matches!(part, std::path::Component::ParentDir))
+    {
+        return None;
+    }
+
+    Some(relative)
+}
+
+fn strip_single_wrapper_folder(files: &mut [SourceFile]) {
+    let Some(first_file) = files.first() else {
+        return;
+    };
+
+    let Some(wrapper_name) = first_file.relative_path.components().next() else {
+        return;
+    };
+
+    let wrapper_name = wrapper_name.as_os_str().to_os_string();
+
+    let should_strip = files.iter().all(|file| {
+        let mut components = file.relative_path.components();
+
+        let Some(first) = components.next() else {
+            return false;
+        };
+
+        first.as_os_str() == wrapper_name && components.next().is_some()
+    });
+
+    if !should_strip {
+        return;
+    }
+
+    for file in files {
+        if let Ok(stripped) = file.relative_path.strip_prefix(&wrapper_name) {
+            file.relative_path = stripped.to_path_buf();
+        }
+    }
+}
+
+fn collect_supported_files(root: &Path, base: &Path, out: &mut Vec<SourceFile>) {
     let mut files = Vec::new();
     let mut has_asi = false;
 
@@ -161,21 +218,46 @@ fn collect_supported_files(root: &Path, out: &mut Vec<PathBuf>) {
             continue;
         }
 
+        let Some(relative_path) = safe_relative_path(base, path) else {
+            continue;
+        };
+
         let extension = ext(path);
 
         if extension == "asi" {
             has_asi = true;
         }
 
-        files.push((path.to_path_buf(), extension));
+        files.push((
+            SourceFile {
+                path: path.to_path_buf(),
+                relative_path,
+            },
+            extension,
+        ));
     }
 
     out.extend(
         files
             .into_iter()
             .filter(|(_, extension)| extension != "ini" || has_asi)
-            .map(|(path, _)| path),
+            .map(|(file, _)| file),
     );
+}
+
+fn collect_single_supported_file(path: &Path, out: &mut Vec<SourceFile>) {
+    if !is_supported_file(path) {
+        return;
+    }
+
+    let Some(file_name) = path.file_name() else {
+        return;
+    };
+
+    out.push(SourceFile {
+        path: path.to_path_buf(),
+        relative_path: PathBuf::from(file_name),
+    });
 }
 
 fn is_archive(path: &Path) -> bool {
@@ -287,19 +369,20 @@ pub async fn analyze_import_paths(
             let path = PathBuf::from(raw);
 
             if path.is_dir() {
-                collect_supported_files(&path, &mut source_files);
+                collect_supported_files(&path, &path, &mut source_files);
                 continue;
             }
 
             if is_archive(&path) {
                 extract_archive(&app, &path, &temp_dir)?;
-                collect_supported_files(&temp_dir, &mut source_files);
+
+                let before_count = source_files.len();
+                collect_supported_files(&temp_dir, &temp_dir, &mut source_files);
+                strip_single_wrapper_folder(&mut source_files[before_count..]);
                 continue;
             }
 
-            if is_supported_file(&path) {
-                source_files.push(path);
-            }
+            collect_single_supported_file(&path, &mut source_files);
         }
 
         if source_files.is_empty() {
@@ -318,11 +401,12 @@ pub async fn analyze_import_paths(
         let suggested_name = source_files
             .iter()
             .find(|file| {
-                file.file_name()
+                file.path
+                    .file_name()
                     .map(|name| name.to_string_lossy().eq_ignore_ascii_case("mod.json"))
                     .unwrap_or(false)
             })
-            .and_then(|file| fs::read_to_string(file).ok())
+            .and_then(|file| fs::read_to_string(&file.path).ok())
             .and_then(|content| serde_json::from_str::<ModMetadata>(&content).ok())
             .and_then(|metadata| metadata.name)
             .map(|name| sanitize_filename::sanitize(name.trim()));
@@ -455,8 +539,7 @@ fn auto_apply_known_mod_icon(
 fn stored_mod_file_names(mod_dir: &Path) -> Result<Vec<String>, String> {
     let mut files = Vec::new();
 
-    for entry in fs::read_dir(mod_dir).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
+    for entry in WalkDir::new(mod_dir).into_iter().filter_map(Result::ok) {
         let path = entry.path();
 
         if !path.is_file() {
@@ -471,12 +554,14 @@ fn stored_mod_file_names(mod_dir: &Path) -> Result<Vec<String>, String> {
             || file_name.eq_ignore_ascii_case("icon.png")
             || file_name.eq_ignore_ascii_case("desktop.ini")
             || file_name.eq_ignore_ascii_case("mod.json")
-            || is_preview_image_file_name(&entry.file_name())
+            || is_image_file(path)
         {
             continue;
         }
 
-        files.push(file_name);
+        if let Ok(relative) = path.strip_prefix(mod_dir) {
+            files.push(relative.to_string_lossy().to_string());
+        }
     }
 
     Ok(files)
@@ -575,20 +660,21 @@ pub async fn import_mod_paths(
             let path = PathBuf::from(raw);
 
             if path.is_dir() {
-                collect_supported_files(&path, &mut source_files);
+                collect_supported_files(&path, &path, &mut source_files);
                 continue;
             }
 
             if is_archive(&path) {
                 fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
                 extract_archive(&app, &path, &temp_dir)?;
-                collect_supported_files(&temp_dir, &mut source_files);
+
+                let before_count = source_files.len();
+                collect_supported_files(&temp_dir, &temp_dir, &mut source_files);
+                strip_single_wrapper_folder(&mut source_files[before_count..]);
                 continue;
             }
 
-            if is_supported_file(&path) {
-                source_files.push(path);
-            }
+            collect_single_supported_file(&path, &mut source_files);
         }
 
         if source_files.is_empty() {
@@ -605,16 +691,15 @@ pub async fn import_mod_paths(
         let mut copied_files = Vec::new();
 
         for file in source_files {
-            let file_name = file
-                .file_name()
-                .ok_or("Invalid file name")?
-                .to_string_lossy()
-                .to_string();
+            let dest = output_dir.join(&file.relative_path);
 
-            let dest = output_dir.join(&file_name);
+            if let Some(parent) = dest.parent() {
+                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
 
-            fs::copy(&file, &dest).map_err(|e| e.to_string())?;
-            copied_files.push(file_name);
+            fs::copy(&file.path, &dest).map_err(|e| e.to_string())?;
+
+            copied_files.push(file.relative_path.to_string_lossy().to_string());
         }
 
         if temp_dir.exists() {
@@ -652,7 +737,7 @@ pub async fn validate_mod_paths(app: tauri::AppHandle, paths: Vec<String>) -> Re
             let path = PathBuf::from(raw);
 
             if path.is_dir() {
-                collect_supported_files(&path, &mut source_files);
+                collect_supported_files(&path, &path, &mut source_files);
                 continue;
             }
 
@@ -665,15 +750,16 @@ pub async fn validate_mod_paths(app: tauri::AppHandle, paths: Vec<String>) -> Re
 
                 fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
                 extract_archive(&app, &path, &temp_dir)?;
-                collect_supported_files(&temp_dir, &mut source_files);
+
+                let before_count = source_files.len();
+                collect_supported_files(&temp_dir, &temp_dir, &mut source_files);
+                strip_single_wrapper_folder(&mut source_files[before_count..]);
 
                 let _ = fs::remove_dir_all(&temp_dir);
                 continue;
             }
 
-            if is_supported_file(&path) {
-                source_files.push(path);
-            }
+            collect_single_supported_file(&path, &mut source_files);
         }
 
         if source_files.is_empty() {

@@ -37,7 +37,7 @@ export default function Footer() {
                 // className="text-zinc-400 transition hover:text-pink-900 text-lg"
                 title="GameBanana"
             >
-                <div className="social-icon-mask social-icon-gamebanana" />
+                <div className="social-icon-mask icon-gamebanana" />
             </button>
 
             <button

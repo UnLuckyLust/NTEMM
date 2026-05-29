@@ -1,11 +1,11 @@
 {
-  "version": "1.2.0",
-  "notes": "NTEMM v1.2.0\n\n- Updated several UI elements to use clearer icons instead of plain text.\n- Improved mod cards to show the most relevant mod data while collapsed.\n- Improved ASI mod cleanup to also remove matching .log files when available.\n- Added support for mod preview images.\n- Added automatic closing for common alert popups.\n- Added early GameBanana integration preparation for a future built-in mod browser.\n- Fixed CN version loader compatibility after the 27/05/2026 launcher update.\n- Fixed Anticensor status detection so it reflects the actual installed file state.\n- Fixed UI mods status detection so installed mods stay correctly shown even when loader files are missing.",
-  "pub_date": "2026-05-27T15:53:47.586Z",
+  "version": "1.3.0",
+  "notes": "NTEMM v1.3.0\n\n- Reworked mod importing to support complex nested mods.\n- Improved mod update handling so installed mods are refreshed in the game folder automatically.\n- Improved game folder reset so it restores the default path and rechecks the game files automatically.\n- Improved loader detection, install, uninstall, and clean logic to respect selected/custom proxy names.\n- Added a 'Reading file' state to prevent extra import actions while files are being read or imported.\n- Added saved game install switching for Global, CN, and TW versions.\n- Added customizable loader proxy DLL names per game version.\n- Added support for custom loader proxy names.",
+  "pub_date": "2026-05-29T11:13:55.269Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUeDVHeGIxQktqSUxoNlRFRDZYUU9OVTRDQjVFV1c3Qno2Uy9PaTdOTXJYUnA2Yi85WWVRc0Rkem5ES3FYS05SZE5zUmpTaFlKYmIzaFJBdEVkZkdYS3dSaGpUWkdNZEFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5ODk3MjI2CWZpbGU6TlRFTU1fMS4yLjBfeDY0LXNldHVwLmV4ZQozVHR0ZUtXK3JZcVAvYzVJcU9qSzh1M0sxVktVeTdyVTRPaGhtRGRjMUlIcmF0enR2cUV1NllqRWVvZmtZajZwTVlBTm5wVlJPZG5BcW5ZdjZjRTFCUT09Cg==",
-      "url": "https://github.com/UnLuckyLust/NTEMM/releases/download/v1.2.0/NTEMM_1.2.0_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUeDVHeGIxQktqSUVOTk8rdk1jTDJCYmFzZjBvWktueXBuSkRBNTFqa2NGdGwwM2NxVnBUbDluYjYrbTBrOUpMR2ZZVFNPOVJLNmhmMXE4aFBQMmlTb0NkRDdlRFFBSmdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMDUzMjMzCWZpbGU6TlRFTU1fMS4zLjBfeDY0LXNldHVwLmV4ZQoybXZmc1B4SEdlTVhSdFZmZHlyRktCZG1TZVBudU5QdTBzTjdCc2xuUlIzV2ZQeGFCN3pUTkxkamRSQW80RS9FRGNQWnRzU0hLb0lTVjNnSi9iN2NEUT09Cg==",
+      "url": "https://github.com/UnLuckyLust/NTEMM/releases/download/v1.3.0/NTEMM_1.3.0_x64-setup.exe"
     }
   }
 }

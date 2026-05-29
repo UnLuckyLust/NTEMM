@@ -41,5 +41,15 @@ export const CHANGELOG_BY_VERSION: Record<string, string[]> = {
     "Fixed CN version loader compatibility after the 27/05/2026 launcher update.",
     "Fixed Anticensor status detection so it reflects the actual installed file state.",
     "Fixed UI mods status detection so installed mods stay correctly shown even when loader files are missing."
+  ],
+  "1.3.0": [
+    "Reworked mod importing to support complex nested mods.",
+    "Improved mod update handling so installed mods are refreshed in the game folder automatically.",
+    "Improved game folder reset so it restores the default path and rechecks the game files automatically.",
+    "Improved loader detection, install, uninstall, and clean logic to respect selected/custom proxy names.",
+    "Added a 'Reading file' state to prevent extra import actions while files are being read or imported.",
+    "Added saved game install switching for Global, CN, and TW versions.",
+    "Added customizable loader proxy DLL names per game version.",
+    "Added support for custom loader proxy names."
   ]
 }

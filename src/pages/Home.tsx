@@ -42,6 +42,7 @@ export default function Home({ /* onOpenGameBanana */ }: HomeProps) {
       <DropZone
         isDragging={state.isDragging}
         isImporting={state.isImporting}
+        isReadingImport={state.isReadingImport}
         isRunningAsAdmin={state.isRunningAsAdmin}
         onOpenImportFilePicker={actions.openImportFilePicker}
         onOpenImportFolderPicker={actions.openImportFolderPicker}
@@ -49,6 +50,14 @@ export default function Home({ /* onOpenGameBanana */ }: HomeProps) {
 
       <div className="flex gap-2 overflow-hidden w-full h-full max-w-400">
         <div className="flex flex-col gap-2 min-w-110">
+          {/* <button
+            onClick={onOpenGameBanana}
+            className="group flex w-full items-center justify-center gap-2 rounded-xl border border-pink-800 bg-zinc-900 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-zinc-950 transition-all duration-200 hover:bg-pink-800 hover:text-white active:scale-[0.98]"
+          >
+            <div className="page-icon-mask icon-gamebanana transition-transform duration-200 group-hover:scale-110" />
+            Browse GameBanana Mods
+          </button> */}
+
           <HudScaleCard gamePath={gamePath} />
           <AnticensorCard
             selected={state.anticensorSelected}

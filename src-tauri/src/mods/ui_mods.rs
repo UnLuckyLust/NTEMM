@@ -135,7 +135,7 @@ pub async fn check_ui_mods(path: String) -> Result<UiModsStatus, String> {
             });
         }
 
-        let loader_check = check_loader_files_inner(&path);
+        let loader_check = check_loader_files_inner(&path, None);
 
         if !loader_check.valid {
             let hide_uid = ui_mod_info("hide_uid")?;
@@ -220,7 +220,7 @@ pub fn set_ui_mod_inner(
         return Err("Invalid game folder".to_string());
     }
 
-    let loader_check = check_loader_files_inner(&path);
+    let loader_check = check_loader_files_inner(&path, None);
 
     set_ui_mod_inner_with_loader_status(resource_root, path, mod_kind, enabled, loader_check.valid)
 }

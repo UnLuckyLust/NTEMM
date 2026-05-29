@@ -4,6 +4,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
+use walkdir::WalkDir;
 
 use crate::app::utils::copy_if_changed;
 use crate::mods::import::{ext, is_preview_image_file_name};
@@ -119,28 +120,36 @@ fn game_targets(game_root: &Path) -> GameTargets {
 fn get_mod_files(mod_dir: &Path) -> Result<Vec<PathBuf>, String> {
     let mut files = Vec::new();
 
-    for entry in fs::read_dir(mod_dir).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
+    for entry in WalkDir::new(mod_dir).into_iter().filter_map(Result::ok) {
         let path = entry.path();
 
-        if path.is_file()
-            && path
-                .file_name()
-                .map(|name| !is_internal_pak_helper_file(name))
-                .unwrap_or(true)
-        {
-            files.push(path);
+        if !path.is_file() {
+            continue;
         }
+
+        if path
+            .file_name()
+            .map(is_internal_pak_helper_file)
+            .unwrap_or(false)
+        {
+            continue;
+        }
+
+        files.push(path.to_path_buf());
     }
 
     Ok(files)
 }
 
+fn relative_mod_path<'a>(mod_dir: &'a Path, file: &'a Path) -> Result<&'a Path, String> {
+    file.strip_prefix(mod_dir)
+        .map_err(|_| "Failed to resolve relative mod file path".to_string())
+}
+
 fn get_preview_image_paths(mod_dir: &Path) -> Result<Vec<String>, String> {
     let mut images = Vec::new();
 
-    for entry in fs::read_dir(mod_dir).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
+    for entry in WalkDir::new(mod_dir).into_iter().filter_map(Result::ok) {
         let path = entry.path();
 
         if !path.is_file() {
@@ -150,6 +159,14 @@ fn get_preview_image_paths(mod_dir: &Path) -> Result<Vec<String>, String> {
         let Some(file_name) = path.file_name() else {
             continue;
         };
+
+        let file_name_text = file_name.to_string_lossy();
+
+        if file_name_text.eq_ignore_ascii_case("icon.ico")
+            || file_name_text.eq_ignore_ascii_case("icon.png")
+        {
+            continue;
+        }
 
         if is_preview_image_file_name(file_name) {
             images.push(path.to_string_lossy().to_string());
@@ -222,9 +239,9 @@ fn target_file_for_pak(
     pak_target: &Path,
     category_dirs: &[PathBuf],
     mod_name: &str,
-    file_name: &std::ffi::OsStr,
+    relative_path: &Path,
 ) -> Option<PathBuf> {
-    let direct = pak_target.join(mod_name).join(file_name);
+    let direct = pak_target.join(mod_name).join(relative_path);
 
     if direct.is_file() {
         return Some(direct);
@@ -232,18 +249,47 @@ fn target_file_for_pak(
 
     category_dirs
         .iter()
-        .map(|category| category.join(mod_name).join(file_name))
+        .map(|category| category.join(mod_name).join(relative_path))
         .find(|path| path.is_file())
 }
 
-fn is_pak_mod_installed_in_dir(mod_info: &StoredMod, target_dir: &Path) -> bool {
-    mod_info.files.iter().all(|file| {
-        let Some(name) = file.file_name() else {
-            return false;
-        };
+fn pak_dir_matches_stored_mod(mod_info: &StoredMod, target_dir: &Path) -> Result<bool, String> {
+    let expected_paths = mod_info
+        .files
+        .iter()
+        .map(|file| {
+            relative_mod_path(&mod_info.dir, file)
+                .map(|relative| relative.to_string_lossy().to_lowercase())
+        })
+        .collect::<Result<HashSet<_>, String>>()?;
 
-        target_dir.join(name).is_file()
-    })
+    for file in &mod_info.files {
+        let relative = relative_mod_path(&mod_info.dir, file)?;
+
+        if !target_dir.join(relative).is_file() {
+            return Ok(false);
+        }
+    }
+
+    for entry in WalkDir::new(target_dir).into_iter().filter_map(Result::ok) {
+        let path = entry.path();
+
+        if !path.is_file() {
+            continue;
+        }
+
+        let relative = path
+            .strip_prefix(target_dir)
+            .map_err(|_| "Failed to resolve installed mod file path".to_string())?
+            .to_string_lossy()
+            .to_lowercase();
+
+        if !expected_paths.contains(&relative) {
+            return Ok(false);
+        }
+    }
+
+    Ok(true)
 }
 
 fn installed_pak_files(
@@ -255,14 +301,14 @@ fn installed_pak_files(
     let mut missing_files = Vec::new();
 
     for file in &mod_info.files {
-        let Some(name) = file.file_name() else {
+        let Ok(relative) = relative_mod_path(&mod_info.dir, file) else {
             continue;
         };
 
-        if target_file_for_pak(pak_target, category_dirs, &mod_info.name, name).is_some() {
+        if target_file_for_pak(pak_target, category_dirs, &mod_info.name, relative).is_some() {
             installed_files += 1;
         } else {
-            missing_files.push(name.to_string_lossy().to_string());
+            missing_files.push(relative.to_string_lossy().to_string());
         }
     }
 
@@ -274,14 +320,14 @@ fn installed_asi_files(mod_info: &StoredMod, asi_target: &Path) -> (usize, Vec<S
     let mut missing_files = Vec::new();
 
     for file in &mod_info.files {
-        let Some(name) = file.file_name() else {
+        let Ok(relative) = relative_mod_path(&mod_info.dir, file) else {
             continue;
         };
 
-        if asi_target.join(name).is_file() {
+        if asi_target.join(relative).is_file() {
             installed_files += 1;
         } else {
-            missing_files.push(name.to_string_lossy().to_string());
+            missing_files.push(relative.to_string_lossy().to_string());
         }
     }
 
@@ -329,11 +375,9 @@ fn remove_pak_mod_from_all_locations(
 
 fn remove_asi_mod_files(mod_info: &StoredMod, asi_target: &Path) -> Result<(), String> {
     for file in &mod_info.files {
-        let Some(name) = file.file_name() else {
-            continue;
-        };
+        let relative = relative_mod_path(&mod_info.dir, file)?;
 
-        remove_file_if_exists(&asi_target.join(name))?;
+        remove_file_if_exists(&asi_target.join(relative))?;
 
         if ext(file) == "asi" {
             if let Some(stem) = file.file_stem() {
@@ -397,8 +441,9 @@ pub async fn list_imported_mods(app: tauri::AppHandle) -> Result<Vec<ImportedMod
             let files = get_mod_files(&path)?
                 .into_iter()
                 .filter_map(|file| {
-                    file.file_name()
-                        .map(|name| name.to_string_lossy().to_string())
+                    file.strip_prefix(&path)
+                        .ok()
+                        .map(|relative| relative.to_string_lossy().to_string())
                 })
                 .collect();
 
@@ -540,12 +585,18 @@ pub fn apply_mod_selection_inner(
                     &mod_info.name,
                 );
 
-                let already_correct = current_dir
+                let already_correct_location = current_dir
                     .as_ref()
-                    .map(|dir| dir == &desired_dir && is_pak_mod_installed_in_dir(mod_info, dir))
+                    .map(|dir| dir == &desired_dir)
                     .unwrap_or(false);
 
-                if !already_correct {
+                let already_correct_file_set = current_dir
+                    .as_ref()
+                    .map(|dir| pak_dir_matches_stored_mod(mod_info, dir))
+                    .transpose()?
+                    .unwrap_or(false);
+
+                if !already_correct_location || !already_correct_file_set {
                     remove_pak_mod_from_all_locations(
                         &targets.pak_target,
                         &initial_category_dirs,
@@ -553,14 +604,13 @@ pub fn apply_mod_selection_inner(
                     )?;
 
                     fs::create_dir_all(&desired_dir).map_err(|e| e.to_string())?;
+                }
 
-                    for file in &mod_info.files {
-                        let Some(name) = file.file_name() else {
-                            continue;
-                        };
+                fs::create_dir_all(&desired_dir).map_err(|e| e.to_string())?;
 
-                        copy_if_changed(file, &desired_dir.join(name))?;
-                    }
+                for file in &mod_info.files {
+                    let relative = relative_mod_path(&mod_info.dir, file)?;
+                    copy_if_changed(file, &desired_dir.join(relative))?;
                 }
 
                 let stored_icon = mod_info.dir.join("icon.ico");
@@ -579,11 +629,8 @@ pub fn apply_mod_selection_inner(
 
             if mod_info.is_asi {
                 for file in &mod_info.files {
-                    let Some(name) = file.file_name() else {
-                        continue;
-                    };
-
-                    copy_if_changed(file, &targets.asi_target.join(name))?;
+                    let relative = relative_mod_path(&mod_info.dir, file)?;
+                    copy_if_changed(file, &targets.asi_target.join(relative))?;
                 }
 
                 if !mod_info.files.is_empty() {

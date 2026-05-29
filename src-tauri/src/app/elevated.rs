@@ -26,6 +26,12 @@ pub struct ElevatedLoaderFilesRequest {
 
     #[serde(default)]
     pub clean: bool,
+
+    #[serde(default)]
+    pub proxy_dll_names: Option<Vec<String>>,
+
+    #[serde(default)]
+    pub all_proxy_dll_names: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -194,7 +200,7 @@ fn apply_bundled_mods_from_request(request: &ElevatedApplyModsRequest) -> Result
         return Err("Invalid game folder".to_string());
     }
 
-    let loader_check = crate::game::loader::check_loader_files_inner(&request.game_path);
+    let loader_check = crate::game::loader::check_loader_files_inner(&request.game_path, None);
     let loader_installed = loader_check.valid;
 
     if let Some(enabled) = request.hide_uid_enabled {
@@ -283,15 +289,27 @@ pub fn run_loader_files_elevated(
 ) -> Result<crate::game::loader::LoaderFilesCheck, String> {
     if is_elevated() || !needs_elevation_for_path(&request.path) {
         if request.clean {
-            return crate::game::loader::clean_game_mods_inner(request.path);
+            return crate::game::loader::clean_game_mods_inner(
+                request.path,
+                request.all_proxy_dll_names,
+            );
         }
 
         if request.install {
             let resource_root = bundled_resource_root()?;
-            return crate::game::loader::install_loader_files_inner(&resource_root, request.path);
+
+            return crate::game::loader::install_loader_files_inner(
+                &resource_root,
+                request.path,
+                request.proxy_dll_names,
+                request.all_proxy_dll_names,
+            );
         }
 
-        return crate::game::loader::uninstall_loader_files_inner(request.path);
+        return crate::game::loader::uninstall_loader_files_inner(
+            request.path,
+            request.all_proxy_dll_names,
+        );
     }
 
     let id = uuid::Uuid::new_v4().to_string();
@@ -488,16 +506,27 @@ fn run_loader_files_from_file(
         serde_json::from_str(&text).map_err(|e| e.to_string())?;
 
     if request.clean {
-        return crate::game::loader::clean_game_mods_inner(request.path);
+        return crate::game::loader::clean_game_mods_inner(
+            request.path,
+            request.all_proxy_dll_names,
+        );
     }
 
     if request.install {
         let resource_root = bundled_resource_root()?;
 
-        return crate::game::loader::install_loader_files_inner(&resource_root, request.path);
+        return crate::game::loader::install_loader_files_inner(
+            &resource_root,
+            request.path,
+            request.proxy_dll_names,
+            request.all_proxy_dll_names,
+        );
     }
 
-    crate::game::loader::uninstall_loader_files_inner(request.path)
+    crate::game::loader::uninstall_loader_files_inner(
+        request.path,
+        request.all_proxy_dll_names,
+    )
 }
 
 fn run_folder_icon_from_file(path: &PathBuf) -> Result<(), String> {

@@ -50,20 +50,44 @@ export type ModsView = "pak" | "asi"
 export type ModUiStatus = "Enabled" | "Disabled" | "Needs Fix" | "Pending Enable" | "Pending Disable" | "Pending Move"
 export type CategoryMoveDirection = "up" | "down"
 
+export type GameVersion = "global" | "cn" | "tw"
+export type SavedGameInstalls = Partial<Record<GameVersion, string>>
+
 export type GameFolderCheck = {
   valid: boolean
   path: string
-  gameVersion: "global" | "cn" | "tw" | "unknown"
+  gameVersion: GameVersion | "unknown"
   root_launcher_found: boolean
+
   nteglobal_folder_found: boolean
   nteglobal_game_found: boolean
   nteglobal_launcher_found: boolean
   nteglobal_update_found: boolean
+
+  ntelauncher_folder_found: boolean
+  nte_game_found: boolean
+  ntelauncher_launcher_found: boolean
+  nte_update_found: boolean
+
+  ntetw_folder_found: boolean
+  ntetw_game_found: boolean
+  ntetw_launcher_found: boolean
+  ntetw_update_found: boolean
+
   ht_game_found: boolean
   global_ucas_found: boolean
   global_utoc_found: boolean
+
   message: string
 }
+
+export type LoaderProxyEntry = {
+  name: string
+  custom: boolean
+  enabled: boolean
+}
+
+export type LoaderProxyConfig = Record<GameVersion, LoaderProxyEntry[]>
 
 export type LoaderFilesCheck = {
   valid: boolean
@@ -71,6 +95,7 @@ export type LoaderFilesCheck = {
   asiFound: boolean
   cutilsFound: boolean
   proxyDllFound: boolean
+  proxyDllNames: string[]
   missingFiles: string[]
   message: string
 }

@@ -13,6 +13,7 @@ import type {
   ModsView,
   LoaderFilesCheck,
   GameFolderCheck,
+  GameVersion,
 } from "@/types/modManager"
 import {
   createPakCategory,
@@ -54,11 +55,21 @@ import {
   removeImportedModCommand,
   validateModPaths,
 } from "@/helpers/tauriModCommands"
+import {
+  getEnabledLoaderProxyNames,
+  getKnownLoaderProxyNames,
+  readLoaderProxyConfig,
+} from "@/helpers/loaderProxySettings"
 import { setPakModIcon, clearPakModIcon } from "@/helpers/folderIcons"
+
+function isKnownGameVersion(version: GameFolderCheck["gameVersion"]): version is GameVersion {
+  return version === "global" || version === "cn" || version === "tw"
+}
 
 export function useModManager() {
   const [isDragging, setIsDragging] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
+  const [isReadingImport, setIsReadingImport] = useState(false)
   const [lastImport, setLastImport] = useState<ImportResult | null>(null)
   const [importedMods, setImportedMods] = useState<ImportedMod[]>([])
   const [pendingPaths, setPendingPaths] = useState<string[] | null>(null)
@@ -92,6 +103,7 @@ export function useModManager() {
 
   const importingRef = useRef(false)
   const validatingDropRef = useRef(false)
+  const readingImportRef = useRef(false)
   const lastDropRef = useRef(0)
   const internalDragRef = useRef(false)
   const modStatusesInitializedRef = useRef(false)
@@ -394,6 +406,12 @@ export function useModManager() {
 
     let overwrite = false
 
+    const wasInstalledBeforeUpdate = existingMod
+      ? activeMods.includes(existingMod.name)
+      : false
+
+    const activeModsBeforeUpdate = activeMods
+
     if (existingMod) {
       const overwriteAsk = await dialog({
         title: "Update Existing Mod?",
@@ -425,6 +443,30 @@ export function useModManager() {
 
       await loadImportedMods()
 
+      if (overwrite && wasInstalledBeforeUpdate) {
+        const gameFolder = getGameFolder()
+
+        if (!gameFolder) {
+          await dialog({
+            title: "Game Folder Missing",
+            message: "The mod was updated in NTEMM, but the game folder is not configured so the installed game files could not be updated",
+            kind: "warning",
+          })
+        } else {
+          const syncedActiveMods = await applyModSelection({
+            gamePath: gameFolder,
+            selectedMods: activeModsBeforeUpdate,
+            pakCategories,
+            hideUidEnabled: hideUidInstalled,
+            hidePingEnabled: hidePingInstalled,
+            anticensorEnabled: anticensorInstalled,
+          })
+
+          setActiveMods(syncedActiveMods)
+          await loadModStatuses()
+        }
+      }
+
       if (result.warnings.length > 0) {
         await dialog({
           title: "Import Warning",
@@ -442,7 +484,35 @@ export function useModManager() {
       importingRef.current = false
       setIsImporting(false)
     }
-  }, [importedMods, loadImportedMods, modName, pendingPaths])
+  }, [
+    activeMods,
+    anticensorInstalled,
+    hidePingInstalled,
+    hideUidInstalled,
+    importedMods,
+    loadImportedMods,
+    loadModStatuses,
+    modName,
+    pakCategories,
+    pendingPaths,
+  ])
+
+  async function getCurrentLoaderProxyPayload(gameFolder: string) {
+    const gameCheck = await invoke<GameFolderCheck>("check_game_folder", {
+      path: gameFolder,
+    })
+
+    const config = readLoaderProxyConfig()
+
+    return {
+      gameCheck,
+      proxyDllNames:
+        gameCheck.valid && isKnownGameVersion(gameCheck.gameVersion)
+          ? getEnabledLoaderProxyNames(config, gameCheck.gameVersion)
+          : undefined,
+      allProxyDllNames: getKnownLoaderProxyNames(config),
+    }
+  }
 
   const toggleLoaderFiles = useCallback(async () => {
     const gameFolder = getGameFolder()
@@ -457,24 +527,44 @@ export function useModManager() {
     }
 
     try {
+      const { proxyDllNames, allProxyDllNames } = await getCurrentLoaderProxyPayload(gameFolder)
+
       const current = await invoke<LoaderFilesCheck>("check_loader_files", {
         path: gameFolder,
+        proxyDllNames,
       })
+
+      if (!current.valid && proxyDllNames?.length === 0) {
+        await dialog({
+          title: "Loader Name Missing",
+          message: "Select at least one loader DLL name in Settings first",
+          kind: "warning",
+        })
+        return
+      }
 
       const result = await invoke<LoaderFilesCheck>(
         current.valid ? "uninstall_loader_files" : "install_loader_files",
-        { path: gameFolder },
+        current.valid
+          ? {
+              path: gameFolder,
+              allProxyDllNames,
+            }
+          : {
+              path: gameFolder,
+              proxyDllNames,
+              allProxyDllNames,
+            },
       )
 
       setLoaderCheck(result)
 
       if (current.valid) {
-        localStorage.removeItem('loaderVersions');
+        localStorage.removeItem("loaderVersions")
       } else {
-        const currentVersions = loaderVersions;
-        localStorage.setItem("loaderVersions", JSON.stringify(currentVersions));
+        localStorage.setItem("loaderVersions", JSON.stringify(loaderVersions))
       }
-      
+
       await dialog({
         title: current.valid ? "Loader Uninstalled" : "Loader Installed",
         message: current.valid ? "Loader files removed successfully" : "Loader files installed successfully",
@@ -515,8 +605,11 @@ export function useModManager() {
     if (!confirmed.ok) return
 
     try {
+      const { allProxyDllNames } = await getCurrentLoaderProxyPayload(gameFolder)
+
       const result = await invoke<LoaderFilesCheck>("clean_game_mods", {
         path: gameFolder,
+        allProxyDllNames,
       })
 
       setLoaderCheck(result)
@@ -582,8 +675,12 @@ export function useModManager() {
       });
       
       if (updateConfirmed.ok) {
+        const { proxyDllNames, allProxyDllNames } = await getCurrentLoaderProxyPayload(gameFolder)
+
         const result = await invoke<LoaderFilesCheck>("install_loader_files", {
           path: gameFolder,
+          proxyDllNames,
+          allProxyDllNames,
         });
         
         if (result.valid) {
@@ -618,13 +715,43 @@ export function useModManager() {
       return;
     }
 
+    const { proxyDllNames } = await getCurrentLoaderProxyPayload(gameFolder)
+
     const result = await invoke<LoaderFilesCheck>("check_loader_files", {
       path: gameFolder,
+      proxyDllNames,
     });
 
     const versionCheckedResult = await checkLoaderVersion(gameFolder, result);
     setLoaderCheck(versionCheckedResult);
   }, []);
+
+  useEffect(() => {
+    function onLoaderProxyConfigChanged() {
+      refreshLoaderCheck()
+    }
+
+    window.addEventListener("loaderProxyConfigChanged", onLoaderProxyConfigChanged)
+
+    return () => {
+      window.removeEventListener("loaderProxyConfigChanged", onLoaderProxyConfigChanged)
+    }
+  }, [refreshLoaderCheck])
+
+  useEffect(() => {
+    refreshLoaderCheck()
+
+    const intervalId = window.setInterval(() => {
+      refreshLoaderCheck()
+    }, 61*1000)
+
+    window.addEventListener("gameFolderChanged", refreshLoaderCheck)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener("gameFolderChanged", refreshLoaderCheck)
+    }
+  }, [refreshLoaderCheck])
 
   const applyModChanges = useCallback(async () => {
     const gameFolder = getGameFolder()
@@ -638,8 +765,11 @@ export function useModManager() {
       return
     }
 
+    const { proxyDllNames } = await getCurrentLoaderProxyPayload(gameFolder)
+
     const loaderCheck = await invoke<LoaderFilesCheck>("check_loader_files", {
       path: gameFolder,
+      proxyDllNames,
     })
 
     if (!loaderCheck.valid) {
@@ -851,48 +981,56 @@ export function useModManager() {
 
   const importDroppedPaths = useCallback(
     async (paths: string[]) => {
-      await validateModPaths(paths)
+      readingImportRef.current = true
+      setIsReadingImport(true)
 
-      const analysis = await analyzeImportPaths(paths)
-      const suggestedName = analysis.suggestedName?.trim() || suggestModName(paths)
+      try {
+        await validateModPaths(paths)
 
-      if (analysis.suggestedName && !analysis.nameConflict) {
-        importingRef.current = true
-        setIsImporting(true)
+        const analysis = await analyzeImportPaths(paths)
+        const suggestedName = analysis.suggestedName?.trim() || suggestModName(paths)
 
-        try {
-          const result = await importModPaths({
-            paths,
-            modName: suggestedName,
-            overwrite: false,
-          })
+        if (analysis.suggestedName && !analysis.nameConflict) {
+          importingRef.current = true
+          setIsImporting(true)
 
-          setLastImport(result)
-          await loadImportedMods()
+          try {
+            const result = await importModPaths({
+              paths,
+              modName: suggestedName,
+              overwrite: false,
+            })
 
-          if (result.warnings.length > 0) {
-            await dialog({
-              title: "Import Warning",
-              message: result.warnings.join("\n"),
-              kind: "warning",
-            });
+            setLastImport(result)
+            await loadImportedMods()
+
+            if (result.warnings.length > 0) {
+              await dialog({
+                title: "Import Warning",
+                message: result.warnings.join("\n"),
+                kind: "warning",
+              })
+            }
+          } finally {
+            importingRef.current = false
+            setIsImporting(false)
           }
-        } finally {
-          importingRef.current = false
-          setIsImporting(false)
+
+          return
         }
 
-        return
+        setPendingPaths(paths)
+        setModName(suggestedName)
+      } finally {
+        readingImportRef.current = false
+        setIsReadingImport(false)
       }
-
-      setPendingPaths(paths)
-      setModName(suggestedName)
     },
     [loadImportedMods],
   )
 
   const openImportFilePicker = useCallback(async () => {
-    if (importingRef.current || validatingDropRef.current) return
+    if (importingRef.current || validatingDropRef.current || readingImportRef.current) return
 
     const selected = await open({
       multiple: true,
@@ -926,7 +1064,7 @@ export function useModManager() {
   }, [importDroppedPaths])
 
   const openImportFolderPicker = useCallback(async () => {
-    if (importingRef.current || validatingDropRef.current) return
+    if (importingRef.current || validatingDropRef.current || readingImportRef.current) return
 
     const selected = await open({
       directory: true,
@@ -967,21 +1105,6 @@ export function useModManager() {
       anticensorInstalled,
     }
   }, [hideUidInstalled, hidePingInstalled, anticensorInstalled])
-
-  useEffect(() => {
-    refreshLoaderCheck()
-
-    const intervalId = window.setInterval(() => {
-      refreshLoaderCheck()
-    }, 61*1000)
-
-    window.addEventListener("gameFolderChanged", refreshLoaderCheck)
-
-    return () => {
-      window.clearInterval(intervalId)
-      window.removeEventListener("gameFolderChanged", refreshLoaderCheck)
-    }
-  }, [refreshLoaderCheck])
 
   useEffect(() => {
     const savedCategories = loadPakCategories()
@@ -1027,7 +1150,7 @@ export function useModManager() {
 
           setIsDragging(false)
 
-          if (importingRef.current || validatingDropRef.current) return
+          if (importingRef.current || validatingDropRef.current || readingImportRef.current) return
 
           validatingDropRef.current = true
 
@@ -1129,6 +1252,7 @@ export function useModManager() {
       gameVersion,
       isDragging,
       isImporting,
+      isReadingImport,
       lastImport,
       pendingPaths,
       modName,
