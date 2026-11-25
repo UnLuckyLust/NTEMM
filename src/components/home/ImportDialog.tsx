@@ -1,3 +1,4 @@
+import { useI18n } from "@/i18n"
 export function ImportDialog({
   isOpen,
   modName,
@@ -13,17 +14,19 @@ export function ImportDialog({
   onConfirm: () => void
   onClose: () => void
 }) {
+  const { t } = useI18n()
+
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
       <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl">
-        <h2 className="text-lg font-bold">Import Mod</h2>
+        <h2 className="text-lg font-bold">{t("mods.importDialog.title")}</h2>
 
-        <p className="mt-2 text-sm text-zinc-400">Enter a unique mod name</p>
+        <p className="mt-2 text-sm text-zinc-400">{t("mods.importDialog.description")}</p>
 
         <input
-          title="Mod Name"
+          title={t("mods.importDialog.modNameTitle")}
           value={modName}
           onChange={(e) => onModNameChange(e.target.value)}
           onKeyDown={(e) => {
@@ -39,7 +42,7 @@ export function ImportDialog({
             onClick={onClose}
             className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
 
           <button
@@ -47,7 +50,7 @@ export function ImportDialog({
             disabled={isImporting}
             className="rounded-lg bg-pink-700 px-4 py-2 text-sm text-white hover:bg-pink-600 disabled:opacity-50"
           >
-            {isImporting ? "Importing..." : "Import"}
+            {isImporting ? t("common.importing") : t("common.import")}
           </button>
         </div>
       </div>

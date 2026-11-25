@@ -4,6 +4,7 @@ import AppIcon from "@/components/ui/AppIcon"
 import { Icons } from "@/lib/icons"
 import logo from "@/assets/icon.png"
 import { TitlebarProps } from "@/interfaces/app"
+import { useI18n } from "@/i18n"
 
 const appWindow = getCurrentWindow()
 
@@ -52,13 +53,15 @@ function useOneShotAnimation(duration = 600) {
   return [active, trigger, stop] as const
 }
 
-export default function Titlebar({ onOpenSettings, isSettingsOpen, /* onOpenGameBanana, isGameBananaOpen */ }: TitlebarProps) {
+export default function Titlebar({ onOpenHome, isHomeOpen, onOpenSettings, isSettingsOpen, onOpenGameBanana, isGameBananaOpen }: TitlebarProps) {
   const [isMaximized, setIsMaximized] = useState(false)
   const [animateMin, triggerMin, stopMin] = useOneShotAnimation(800)
   const [animateMax, triggerMax, stopMax] = useOneShotAnimation(800)
   const [animateClose, triggerClose, stopClose] = useOneShotAnimation(500)
+  const [animateHome, triggerHome, stopHome] = useOneShotAnimation(500)
   const [animateSettings, triggerSettings, stopSettings] = useOneShotAnimation(1000)
-  // const [animateGB, triggerGB, stopGB] = useOneShotAnimation(800)
+  const [animateGB, triggerGB, stopGB] = useOneShotAnimation(800)
+  const { t } = useI18n()
 
   useEffect(() => {
     appWindow.isMaximized().then(setIsMaximized)
@@ -93,58 +96,54 @@ export default function Titlebar({ onOpenSettings, isSettingsOpen, /* onOpenGame
   }
 
   return (
-    <div className="flex h-11 items-center justify-between border-b border-pink-900 bg-zinc-950 select-none text-zinc-100">
-      <div
-        data-tauri-drag-region
-        className="flex min-w-0 flex-1 items-center px-1"
+    <div className="grid h-11 grid-cols-[1fr_auto_1fr] items-center border-b border-pink-900 bg-zinc-950 select-none text-zinc-100">
+      <div data-tauri-drag-region
+        className="flex h-full min-w-0 items-center px-2"
       >
-        <div
-          data-tauri-drag-region
-          className="flex min-w-0 flex-1 items-center gap-1 pr-4"
+        <div data-tauri-drag-region
+          className="flex min-w-0 items-center gap-1 pe-4"
         >
           <div className="mx-1 h-8 w-8 shrink-0 overflow-hidden rounded-full border border-white/10 bg-black/20">
             <img
               src={logo}
               alt="NTEMM"
-              className="h-full w-full object-cover pointer-events-none"
+              className="pointer-events-none h-full w-full object-cover"
               draggable={false}
             />
           </div>
 
-          <div data-tauri-drag-region className="truncate text-md font-bold font-title">
-            NTE Mod Manager
+          <div data-tauri-drag-region
+            className="truncate text-md font-bold font-title"
+          >
+            {t("app.title")}
           </div>
         </div>
       </div>
 
-      <div className="flex h-full items-center px-2">
-        {/* <button
-          type="button"
-          aria-label={isGameBananaOpen ? "Close GameBanana" : "GameBanana"}
-          title={isGameBananaOpen ? "Close GameBanana" : "GameBanana"}
-          onMouseEnter={triggerGB}
-          onMouseLeave={stopGB}
-          onClick={onOpenGameBanana}
-          className={`${iconBtn} ${
-            isGameBananaOpen ? iconVariants.red : iconVariants.yellow
-          }`}
-        >
-          <AppIcon
-            icon={Icons.puzzle}
-            className={`text-[15px] ${animateGB ? "fa-beat" : ""}`}
-          />
-        </button> */}
-
+      <div className="flex h-full items-center justify-center px-2">
         <button
           type="button"
-          aria-label={isSettingsOpen ? "Close Settings" : "Settings"}
-          title={isSettingsOpen ? "Close Settings" : "Settings"}
+          aria-label={t("titlebar.home")}
+          title={isHomeOpen ? t("titlebar.home") : t("titlebar.backToHome")}
+          onMouseEnter={triggerHome}
+          onMouseLeave={stopHome}
+          onClick={onOpenHome}
+          className={`${iconBtn} ${iconVariants.blue}`}
+        >
+          <AppIcon
+            icon={Icons.home}
+            className={`text-[15px] ${animateHome ? "fa-flip" : ""}`}
+          />
+        </button>
+        
+        <button
+          type="button"
+          aria-label={isSettingsOpen ? t("titlebar.closeSettings") : t("titlebar.settings")}
+          title={isSettingsOpen ? t("titlebar.closeSettings") : t("titlebar.settings")}
           onMouseEnter={triggerSettings}
           onMouseLeave={stopSettings}
           onClick={onOpenSettings}
-          className={`${iconBtn} ${
-            isSettingsOpen ? iconVariants.red : iconVariants.blue
-          }`}
+          className={`${iconBtn} ${isSettingsOpen ? iconVariants.red : iconVariants.blue}`}
         >
           <AppIcon
             icon={Icons.settings}
@@ -154,8 +153,28 @@ export default function Titlebar({ onOpenSettings, isSettingsOpen, /* onOpenGame
 
         <button
           type="button"
-          aria-label="Minimize"
-          title="Minimize"
+          aria-label={isGameBananaOpen ? t("titlebar.closeGameBanana") : t("gamebanana.title")}
+          title={isGameBananaOpen ? t("titlebar.closeGameBanana") : t("gamebanana.title")}
+          onMouseEnter={triggerGB}
+          onMouseLeave={stopGB}
+          onClick={onOpenGameBanana}
+          className={`${iconBtn} ${isGameBananaOpen ? iconVariants.red : iconVariants.yellow}`}
+        >
+          <AppIcon
+            icon={Icons.puzzle}
+            className={`text-[15px] ${animateGB ? "fa-beat" : ""}`}
+          />
+        </button>
+      </div>
+
+      <div
+        data-tauri-drag-region
+        className="flex h-full items-center justify-end px-2"
+      >
+        <button
+          type="button"
+          aria-label={t("titlebar.minimize")}
+          title={t("titlebar.minimize")}
           onMouseEnter={triggerMin}
           onMouseLeave={stopMin}
           onClick={() => appWindow.minimize()}
@@ -166,8 +185,8 @@ export default function Titlebar({ onOpenSettings, isSettingsOpen, /* onOpenGame
 
         <button
           type="button"
-          aria-label={isMaximized ? "Restore" : "Maximize"}
-          title={isMaximized ? "Restore" : "Maximize"}
+          aria-label={isMaximized ? t("titlebar.restore") : t("titlebar.maximize")}
+          title={isMaximized ? t("titlebar.restore") : t("titlebar.maximize")}
           onMouseEnter={triggerMax}
           onMouseLeave={stopMax}
           onClick={toggleMaximize}
@@ -181,8 +200,8 @@ export default function Titlebar({ onOpenSettings, isSettingsOpen, /* onOpenGame
 
         <button
           type="button"
-          aria-label="Close"
-          title="Close"
+          aria-label={t("common.close")}
+          title={t("common.close")}
           onMouseEnter={triggerClose}
           onMouseLeave={stopClose}
           onClick={() => appWindow.close()}

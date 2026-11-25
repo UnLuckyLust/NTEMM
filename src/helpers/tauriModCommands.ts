@@ -34,6 +34,10 @@ export function removeImportedModCommand(name: string) {
   return invoke("remove_imported_mod", { name })
 }
 
+export function renameImportedModCommand(oldName: string, newName: string) {
+  return invoke<string>("rename_imported_mod", { oldName, newName })
+}
+
 export function applyModSelection(params: {
   gamePath: string
   selectedMods: string[]

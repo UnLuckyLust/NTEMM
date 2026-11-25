@@ -1,26 +1,16 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::game::game::validate;
+use super::game_functions::validate;
+use super::structs::EngineIniCheck;
 
-#[derive(serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EngineIniCheck {
-    pub valid: bool,
-    pub path: String,
-    pub application_scale: Option<f32>,
-    pub message: String,
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn check_engine_ini(path: String) -> Result<EngineIniCheck, String> {
+pub async fn check_engine_ini_inner(path: String) -> Result<EngineIniCheck, String> {
     tauri::async_runtime::spawn_blocking(move || Ok(check_engine_ini_path(Path::new(&path))))
         .await
         .map_err(|e| e.to_string())?
 }
 
-#[tauri::command(rename_all = "camelCase")]
-pub async fn detect_engine_ini_for_game(game_path: String) -> Result<EngineIniCheck, String> {
+pub async fn detect_engine_ini_for_game_inner(game_path: String) -> Result<EngineIniCheck, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let game_check = validate(Path::new(&game_path));
 
@@ -29,7 +19,7 @@ pub async fn detect_engine_ini_for_game(game_path: String) -> Result<EngineIniCh
                 valid: false,
                 path: String::new(),
                 application_scale: None,
-                message: "Game folder/version was not detected".to_string(),
+                message_key: "backend.gameFolderVersionNotDetected".to_string(),
             });
         }
 
@@ -38,7 +28,7 @@ pub async fn detect_engine_ini_for_game(game_path: String) -> Result<EngineIniCh
                 valid: false,
                 path: String::new(),
                 application_scale: None,
-                message: "Unsupported game version".to_string(),
+                message_key: "backend.unsupportedGameVersion".to_string(),
             });
         };
 
@@ -48,26 +38,25 @@ pub async fn detect_engine_ini_for_game(game_path: String) -> Result<EngineIniCh
     .map_err(|e| e.to_string())?
 }
 
-#[tauri::command(rename_all = "camelCase")]
-pub async fn set_ui_scale(game_path: String, scale: f32) -> Result<EngineIniCheck, String> {
+pub async fn set_ui_scale_inner(game_path: String, scale: f32) -> Result<EngineIniCheck, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let game_check = validate(Path::new(&game_path));
 
         if !game_check.valid {
-            return Err("Game folder/version was not detected".to_string());
+            return Err("errors.gameFolderVersionNotDetected".to_string());
         }
 
         let path = engine_ini_path_for_version(&game_check.game_version)
-            .ok_or_else(|| "Unsupported game version".to_string())?;
+            .ok_or_else(|| "errors.unsupportedGameVersion".to_string())?;
 
         let path = path.as_path();
 
         if !is_allowed_engine_ini_path(path) {
-            return Err("Invalid file. Only the game's Engine.ini can be edited.".to_string());
+            return Err("errors.invalidEngineIniFile".to_string());
         }
 
         if !path.is_file() {
-            return Err("Engine.ini was not found".to_string());
+            return Err("errors.engineIniNotFound".to_string());
         }
 
         let scale = scale.clamp(0.25, 1.5);
@@ -127,7 +116,7 @@ fn check_engine_ini_path(path: &Path) -> EngineIniCheck {
             valid: false,
             path: path.to_string_lossy().to_string(),
             application_scale: None,
-            message: "Invalid file. Select the game's Engine.ini file only.".to_string(),
+            message_key: "backend.invalidEngineIniFile".to_string(),
         };
     }
 
@@ -136,7 +125,7 @@ fn check_engine_ini_path(path: &Path) -> EngineIniCheck {
             valid: false,
             path: path.to_string_lossy().to_string(),
             application_scale: None,
-            message: "Engine.ini was not found".to_string(),
+            message_key: "backend.engineIniNotFound".to_string(),
         };
     }
 
@@ -148,7 +137,7 @@ fn check_engine_ini_path(path: &Path) -> EngineIniCheck {
         valid: true,
         path: path.to_string_lossy().to_string(),
         application_scale,
-        message: "Engine.ini detected".to_string(),
+        message_key: "backend.engineIniDetected".to_string(),
     }
 }
 
@@ -164,7 +153,9 @@ fn is_allowed_engine_ini_path(path: &Path) -> bool {
     let normalized = path.to_string_lossy().replace('/', "\\");
 
     normalized.ends_with("\\Config\\Windows\\Engine.ini")
-        && (normalized.contains("\\HT\\Saved_Global\\")
+        && (normalized.contains("\\HT\\Saved_GlobalSteam\\")
+            || normalized.contains("\\HT\\Saved_GlobalEpic\\")
+            || normalized.contains("\\HT\\Saved_Global\\")
             || normalized.contains("\\HT\\Saved\\")
             || normalized.contains("\\HT\\Saved_GAT\\"))
 }
@@ -174,6 +165,8 @@ fn engine_ini_path_for_version(game_version: &str) -> Option<PathBuf> {
     let local_app_data = PathBuf::from(local_app_data);
 
     let saved_folder = match game_version {
+        "steam" => "Saved_GlobalSteam",
+        "epic" => "Saved_GlobalEpic",
         "global" => "Saved_Global",
         "cn" => "Saved",
         "tw" => "Saved_GAT",

@@ -1,10 +1,13 @@
 import { openUrl } from "@tauri-apps/plugin-opener"
 import AppIcon from "@/components/ui/AppIcon"
+import { useI18n } from "@/i18n"
 import { Icons } from "@/lib/icons"
 import { ModCardProps } from "@/interfaces/gamebanana"
 
 
 export default function GameBananaModCard({ mod, onOpenDetails }: ModCardProps) {
+  const { t } = useI18n()
+
   async function openModPage() {
     if (!mod.pageUrl) return
 
@@ -40,7 +43,9 @@ export default function GameBananaModCard({ mod, onOpenDetails }: ModCardProps) 
         </div>
 
         <div className="mt-0.5 truncate text-xs text-zinc-500">
-          by {mod.ownerName || "Unknown"}
+          {t("gamebanana.byAuthor", {
+            author: mod.ownerName || t("gamebanana.unknownAuthor"),
+          })}
         </div>
 
         {mod.description && (
@@ -51,19 +56,19 @@ export default function GameBananaModCard({ mod, onOpenDetails }: ModCardProps) 
 
         <div className="mt-auto flex items-center justify-between gap-2 pt-2">
           <div className="flex min-w-0 items-center gap-3 text-xs text-zinc-500">
-            <span title="Likes">
-              <AppIcon icon={Icons.heart} className="mr-1 text-[12px]" />
+            <span title={t("gamebanana.likes")}>
+              <AppIcon icon={Icons.heart} className="me-1 text-[12px]" />
               {mod.likes}
             </span>
 
-            <span title="Downloads">
-              <AppIcon icon={Icons.download} className="mr-1 text-[12px]" />
+            <span title={t("gamebanana.downloads")}>
+              <AppIcon icon={Icons.download} className="me-1 text-[12px]" />
               {mod.downloads}
             </span>
           </div>
 
           <button
-            title="Open in GameBanana"
+            title={t("gamebanana.openInGameBanana")}
             onClick={(event) => {
               event.stopPropagation()
               openModPage()

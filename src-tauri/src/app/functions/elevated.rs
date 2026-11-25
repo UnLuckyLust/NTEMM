@@ -1,58 +1,18 @@
-use serde::{Deserialize, Serialize};
-use std::{ffi::OsStr, fs, os::windows::ffi::OsStrExt, path::PathBuf};
+use super::structs::{
+    ElevatedApplyModsRequest, ElevatedFolderIconRequest, ElevatedLoaderFilesRequest,
+    ElevatedOpenFolderRequest, ElevatedResult,
+};
+use std::{fs, path::PathBuf};
 
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ElevatedApplyModsRequest {
-    pub game_path: String,
-    pub selected_mods: Vec<String>,
-    pub pak_categories: std::collections::HashMap<String, Vec<String>>,
+#[cfg(target_os = "windows")]
+use std::{ffi::OsStr, os::windows::ffi::OsStrExt};
 
-    #[serde(default)]
-    pub hide_uid_enabled: Option<bool>,
-
-    #[serde(default)]
-    pub hide_ping_enabled: Option<bool>,
-
-    #[serde(default)]
-    pub anticensor_enabled: Option<bool>,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ElevatedLoaderFilesRequest {
-    pub path: String,
-    pub install: bool,
-
-    #[serde(default)]
-    pub clean: bool,
-
-    #[serde(default)]
-    pub proxy_dll_names: Option<Vec<String>>,
-
-    #[serde(default)]
-    pub all_proxy_dll_names: Option<Vec<String>>,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ElevatedFolderIconRequest {
-    pub folder_path: String,
-    pub icon_path: String,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ElevatedResult<T> {
-    pub ok: bool,
-    pub data: Option<T>,
-    pub error: Option<String>,
-}
-
+#[cfg(target_os = "windows")]
 fn wide(value: &OsStr) -> Vec<u16> {
     value.encode_wide().chain(std::iter::once(0)).collect()
 }
 
+#[cfg(target_os = "windows")]
 fn wide_str(value: &str) -> Vec<u16> {
     OsStr::new(value)
         .encode_wide()
@@ -61,7 +21,7 @@ fn wide_str(value: &str) -> Vec<u16> {
 }
 
 #[cfg(target_os = "windows")]
-fn is_elevated() -> bool {
+pub(crate) fn is_elevated() -> bool {
     use windows_sys::Win32::Foundation::CloseHandle;
     use windows_sys::Win32::Security::{
         GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY,
@@ -93,13 +53,8 @@ fn is_elevated() -> bool {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn is_elevated() -> bool {
+pub(crate) fn is_elevated() -> bool {
     true
-}
-
-#[tauri::command]
-pub fn is_app_elevated() -> bool {
-    is_elevated()
 }
 
 pub fn needs_elevation_for_path(path: &str) -> bool {
@@ -162,7 +117,7 @@ fn run_as_admin_and_wait(args: &str) -> Result<(), String> {
 
     unsafe {
         if ShellExecuteExW(&mut info) == 0 {
-            return Err("Admin permission was cancelled or failed".into());
+            return Err("errors.adminPermissionCancelledOrFailed".into());
         }
 
         if !info.hProcess.is_null() {
@@ -174,12 +129,17 @@ fn run_as_admin_and_wait(args: &str) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(not(target_os = "windows"))]
+fn run_as_admin_and_wait(_args: &str) -> Result<(), String> {
+    Err("errors.adminActionFailed".to_string())
+}
+
 fn bundled_resource_root() -> Result<PathBuf, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
 
     Ok(exe
         .parent()
-        .ok_or("Failed to resolve app folder")?
+        .ok_or("errors.failedResolveAppFolder")?
         .join("resources"))
 }
 
@@ -193,11 +153,10 @@ fn apply_bundled_mods_from_request(request: &ElevatedApplyModsRequest) -> Result
     }
 
     let resource_root = bundled_resource_root()?;
-
     let game_check = crate::game::game::validate(std::path::Path::new(&request.game_path));
 
     if !game_check.valid {
-        return Err("Invalid game folder".to_string());
+        return Err("errors.invalidGameFolder".to_string());
     }
 
     let loader_check = crate::game::loader::check_loader_files_inner(&request.game_path, None);
@@ -269,7 +228,7 @@ pub fn run_apply_mod_selection_elevated(
     run_as_admin_and_wait(&args)?;
 
     let result_text = fs::read_to_string(&result_path)
-        .map_err(|_| "Admin action finished but did not return a result".to_string())?;
+        .map_err(|_| "errors.adminActionNoResult".to_string())?;
 
     let _ = fs::remove_file(&request_path);
     let _ = fs::remove_file(&result_path);
@@ -280,7 +239,9 @@ pub fn run_apply_mod_selection_elevated(
     if result.ok {
         Ok(result.data.unwrap_or_default())
     } else {
-        Err(result.error.unwrap_or_else(|| "Admin action failed".into()))
+        Err(result
+            .error
+            .unwrap_or_else(|| "errors.adminActionFailed".into()))
     }
 }
 
@@ -331,7 +292,7 @@ pub fn run_loader_files_elevated(
     run_as_admin_and_wait(&args)?;
 
     let result_text = fs::read_to_string(&result_path)
-        .map_err(|_| "Admin action finished but did not return a result".to_string())?;
+        .map_err(|_| "errors.adminActionNoResult".to_string())?;
 
     let _ = fs::remove_file(&request_path);
     let _ = fs::remove_file(&result_path);
@@ -342,9 +303,52 @@ pub fn run_loader_files_elevated(
     if result.ok {
         result
             .data
-            .ok_or_else(|| "Admin action finished without loader result".to_string())
+            .ok_or_else(|| "errors.adminActionNoLoaderResult".to_string())
     } else {
-        Err(result.error.unwrap_or_else(|| "Admin action failed".into()))
+        Err(result
+            .error
+            .unwrap_or_else(|| "errors.adminActionFailed".into()))
+    }
+}
+
+pub fn run_open_folder_elevated(request: ElevatedOpenFolderRequest) -> Result<(), String> {
+    if is_elevated() || !needs_elevation_for_path(&request.path) {
+        return super::utils_functions::open_folder_inner(request.path);
+    }
+
+    let id = uuid::Uuid::new_v4().to_string();
+    let request_path = std::env::temp_dir().join(format!("ntemm_open_folder_request_{id}.json"));
+    let result_path = std::env::temp_dir().join(format!("ntemm_open_folder_result_{id}.json"));
+
+    fs::write(
+        &request_path,
+        serde_json::to_string(&request).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
+
+    let args = format!(
+        "--ntemm-elevated open-folder \"{}\" \"{}\"",
+        request_path.to_string_lossy(),
+        result_path.to_string_lossy()
+    );
+
+    run_as_admin_and_wait(&args)?;
+
+    let result_text = fs::read_to_string(&result_path)
+        .map_err(|_| "errors.adminActionNoResult".to_string())?;
+
+    let _ = fs::remove_file(&request_path);
+    let _ = fs::remove_file(&result_path);
+
+    let result: ElevatedResult<()> =
+        serde_json::from_str(&result_text).map_err(|e| e.to_string())?;
+
+    if result.ok {
+        Ok(())
+    } else {
+        Err(result
+            .error
+            .unwrap_or_else(|| "errors.adminActionFailed".into()))
     }
 }
 
@@ -375,7 +379,7 @@ pub fn run_folder_icon_elevated(request: ElevatedFolderIconRequest) -> Result<()
     run_as_admin_and_wait(&args)?;
 
     let result_text = fs::read_to_string(&result_path)
-        .map_err(|_| "Admin action finished but did not return a result".to_string())?;
+        .map_err(|_| "errors.adminActionNoResult".to_string())?;
 
     let _ = fs::remove_file(&request_path);
     let _ = fs::remove_file(&result_path);
@@ -386,7 +390,9 @@ pub fn run_folder_icon_elevated(request: ElevatedFolderIconRequest) -> Result<()
     if result.ok {
         Ok(())
     } else {
-        Err(result.error.unwrap_or_else(|| "Admin action failed".into()))
+        Err(result
+            .error
+            .unwrap_or_else(|| "errors.adminActionFailed".into()))
     }
 }
 
@@ -401,85 +407,89 @@ pub fn handle_elevated_cli() -> bool {
     let request_path = PathBuf::from(&args[3]);
     let result_path = PathBuf::from(&args[4]);
 
-    if action == "apply-mod-selection" {
-        let result = run_apply_mod_selection_from_file(&request_path);
+    match action.as_str() {
+        "apply-mod-selection" => {
+            let result = run_apply_mod_selection_from_file(&request_path);
+            let output = match result {
+                Ok(data) => ElevatedResult {
+                    ok: true,
+                    data: Some(data),
+                    error: None,
+                },
+                Err(error) => ElevatedResult::<Vec<String>> {
+                    ok: false,
+                    data: None,
+                    error: Some(error),
+                },
+            };
 
-        let output = match result {
-            Ok(data) => ElevatedResult {
-                ok: true,
-                data: Some(data),
-                error: None,
-            },
-            Err(error) => ElevatedResult::<Vec<String>> {
-                ok: false,
-                data: None,
-                error: Some(error),
-            },
-        };
+            write_elevated_result(&result_path, &output);
+            true
+        }
+        "loader-files" => {
+            let result = run_loader_files_from_file(&request_path);
+            let output = match result {
+                Ok(data) => ElevatedResult {
+                    ok: true,
+                    data: Some(data),
+                    error: None,
+                },
+                Err(error) => ElevatedResult::<crate::game::loader::LoaderFilesCheck> {
+                    ok: false,
+                    data: None,
+                    error: Some(error),
+                },
+            };
 
-        let _ = fs::write(
-            result_path,
-            serde_json::to_string(&output).unwrap_or_else(|_| {
-                r#"{"ok":false,"data":null,"error":"Failed to serialize result"}"#.to_string()
-            }),
-        );
+            write_elevated_result(&result_path, &output);
+            true
+        }
+        "open-folder" => {
+            let result = run_open_folder_from_file(&request_path);
+            let output = match result {
+                Ok(()) => ElevatedResult::<()> {
+                    ok: true,
+                    data: None,
+                    error: None,
+                },
+                Err(error) => ElevatedResult::<()> {
+                    ok: false,
+                    data: None,
+                    error: Some(error),
+                },
+            };
 
-        return true;
+            write_elevated_result(&result_path, &output);
+            true
+        }
+        "folder-icon" => {
+            let result = run_folder_icon_from_file(&request_path);
+            let output = match result {
+                Ok(()) => ElevatedResult::<()> {
+                    ok: true,
+                    data: None,
+                    error: None,
+                },
+                Err(error) => ElevatedResult::<()> {
+                    ok: false,
+                    data: None,
+                    error: Some(error),
+                },
+            };
+
+            write_elevated_result(&result_path, &output);
+            true
+        }
+        _ => false,
     }
+}
 
-    if action == "loader-files" {
-        let result = run_loader_files_from_file(&request_path);
+fn write_elevated_result<T: serde::Serialize>(path: &PathBuf, result: &ElevatedResult<T>) {
+    let json = serde_json::to_string(result).unwrap_or_else(|_| {
+        r#"{"ok":false,"data":null,"error":"errors.failedSerializeResult"}"#.to_string()
+    });
 
-        let output = match result {
-            Ok(data) => ElevatedResult {
-                ok: true,
-                data: Some(data),
-                error: None,
-            },
-            Err(error) => ElevatedResult::<crate::game::loader::LoaderFilesCheck> {
-                ok: false,
-                data: None,
-                error: Some(error),
-            },
-        };
-
-        let _ = fs::write(
-            result_path,
-            serde_json::to_string(&output).unwrap_or_else(|_| {
-                r#"{"ok":false,"data":null,"error":"Failed to serialize result"}"#.to_string()
-            }),
-        );
-
-        return true;
-    }
-
-    if action == "folder-icon" {
-        let result = run_folder_icon_from_file(&request_path);
-
-        let output = match result {
-            Ok(_) => ElevatedResult::<()> {
-                ok: true,
-                data: None,
-                error: None,
-            },
-            Err(error) => ElevatedResult::<()> {
-                ok: false,
-                data: None,
-                error: Some(error),
-            },
-        };
-
-        let _ = fs::write(
-            result_path,
-            serde_json::to_string(&output).unwrap_or_else(|_| {
-                r#"{"ok":false,"data":null,"error":"Failed to serialize result"}"#.to_string()
-            }),
-        );
-
-        return true;
-    }
-
-    false
+    let _ = fs::write(path, json);
 }
 
 fn run_apply_mod_selection_from_file(path: &PathBuf) -> Result<Vec<String>, String> {
@@ -523,10 +533,15 @@ fn run_loader_files_from_file(
         );
     }
 
-    crate::game::loader::uninstall_loader_files_inner(
-        request.path,
-        request.all_proxy_dll_names,
-    )
+    crate::game::loader::uninstall_loader_files_inner(request.path, request.all_proxy_dll_names)
+}
+
+fn run_open_folder_from_file(path: &PathBuf) -> Result<(), String> {
+    let text = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let request: ElevatedOpenFolderRequest =
+        serde_json::from_str(&text).map_err(|e| e.to_string())?;
+
+    super::utils_functions::open_folder_inner(request.path)
 }
 
 fn run_folder_icon_from_file(path: &PathBuf) -> Result<(), String> {

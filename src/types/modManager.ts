@@ -50,7 +50,7 @@ export type ModsView = "pak" | "asi"
 export type ModUiStatus = "Enabled" | "Disabled" | "Needs Fix" | "Pending Enable" | "Pending Disable" | "Pending Move"
 export type CategoryMoveDirection = "up" | "down"
 
-export type GameVersion = "global" | "cn" | "tw"
+export type GameVersion = "global" | "steam" | "epic" | "cn" | "tw"
 export type SavedGameInstalls = Partial<Record<GameVersion, string>>
 export type VersionedStorage<T> = Partial<Record<GameVersion, T>>
 
@@ -79,7 +79,7 @@ export type GameFolderCheck = {
   global_ucas_found: boolean
   global_utoc_found: boolean
 
-  message: string
+  messageKey: string
 }
 
 export type LoaderProxyEntry = {
@@ -98,7 +98,7 @@ export type LoaderFilesCheck = {
   proxyDllFound: boolean
   proxyDllNames: string[]
   missingFiles: string[]
-  message: string
+  messageKey: string
 }
 
 export type ModsSectionProps = {
@@ -116,9 +116,13 @@ export type ModsSectionProps = {
   onAddCategoryClick: () => void
   onRefresh: () => void
   onBeginPakDrag: (modName: string) => void
+  onMovePakModDragOver: (targetCategoryId: string, targetModName: string | null) => void
+  onEndPakDrag: () => void
   toggleModSelection: (name: string) => void
   getModStatus: (name: string) => ModUiStatus
   removeImportedMod: (name: string) => void
+  renameImportedMod: (oldName: string, newName: string) => Promise<string | null>
+  getModRenameError: (oldName: string, newName: string) => string
   updatePakCategoryName: (categoryId: string, name: string) => void
   revertPakCategoryName: (categoryId: string) => void
   movePakCategory: (categoryId: string, direction: "up" | "down") => void
@@ -128,3 +132,12 @@ export type ModsSectionProps = {
   changePakModIcon: (modName: string) => void
   clearPakModIconForMod: (modName: string) => void
 }
+
+export type ModSortMode =
+  | "manual"
+  | "nameAsc"
+  | "nameDesc"
+  | "enabledFirst"
+  | "disabledFirst"
+  | "authorAsc"
+  | "fileCountDesc"

@@ -1,19 +1,12 @@
+use crate::mods::structs::{AnticensorStatus};
 use std::path::Path;
 use tauri::Manager;
 
 use crate::app::utils::copy_if_changed;
 use crate::game::loader::{check_loader_files_inner, loader_target_dir};
 
-#[derive(serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AnticensorStatus {
-    pub installed: bool,
-    pub loader_installed: bool,
-    pub path: String,
-    pub message: String,
-}
 
-fn anticensor_target_path(path: &Path) -> std::path::PathBuf {
+pub(crate) fn anticensor_target_path(path: &Path) -> std::path::PathBuf {
     loader_target_dir(path).join("Anticensor.asi")
 }
 
@@ -24,7 +17,7 @@ fn anticensor_resource_path(resource_root: &Path) -> std::path::PathBuf {
         .join("Anticensor.asi")
 }
 
-fn anticensor_resource_root(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+pub(crate) fn anticensor_resource_root(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
     Ok(app
         .path()
         .resource_dir()
@@ -56,33 +49,6 @@ fn remove_asi_with_log_if_exists(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command(rename_all = "camelCase")]
-pub async fn check_anticensor_mod(path: String) -> Result<AnticensorStatus, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let game_path = Path::new(&path);
-        let target = anticensor_target_path(game_path);
-        let loader_check = check_loader_files_inner(&path, None);
-
-        let installed = target.is_file();
-
-        Ok(AnticensorStatus {
-            installed,
-            loader_installed: loader_check.valid,
-            path: target.to_string_lossy().to_string(),
-            message: if installed {
-                if loader_check.valid {
-                    "Anticensor is installed".to_string()
-                } else {
-                    "Anticensor is installed, but loader files are missing".to_string()
-                }
-            } else {
-                "Anticensor is not installed".to_string()
-            },
-        })
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
 
 pub fn set_anticensor_mod_inner_with_loader_status(
     resource_root: &Path,
@@ -100,7 +66,7 @@ pub fn set_anticensor_mod_inner_with_loader_status(
             installed: false,
             loader_installed: false,
             path: target.to_string_lossy().to_string(),
-            message: "Install loader files first".to_string(),
+            message_key: "dialogs.installLoaderFilesFirst".to_string(),
         });
     }
 
@@ -123,10 +89,10 @@ pub fn set_anticensor_mod_inner_with_loader_status(
         installed: target.is_file(),
         loader_installed: true,
         path: target.to_string_lossy().to_string(),
-        message: if target.is_file() {
-            "Anticensor is installed".to_string()
+        message_key: if target.is_file() {
+            "backend.anticensorInstalled".to_string()
         } else {
-            "Anticensor is not installed".to_string()
+            "backend.anticensorNotInstalled".to_string()
         },
     })
 }
@@ -139,19 +105,4 @@ pub fn set_anticensor_mod_inner(
     let loader_check = check_loader_files_inner(&path, None);
 
     set_anticensor_mod_inner_with_loader_status(resource_root, path, enabled, loader_check.valid)
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn set_anticensor_mod(
-    app: tauri::AppHandle,
-    path: String,
-    enabled: bool,
-) -> Result<AnticensorStatus, String> {
-    let resource_root = anticensor_resource_root(&app)?;
-
-    tauri::async_runtime::spawn_blocking(move || {
-        set_anticensor_mod_inner(&resource_root, path, enabled)
-    })
-    .await
-    .map_err(|e| e.to_string())?
 }

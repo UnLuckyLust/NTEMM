@@ -1,5 +1,6 @@
 import { openUrl } from "@tauri-apps/plugin-opener"
 import AppIcon from "@/components/ui/AppIcon"
+import { useI18n } from "@/i18n"
 import { Icons } from "@/lib/icons"
 import { DetailsPanelProps } from "@/interfaces/gamebanana"
 
@@ -10,6 +11,8 @@ export default function DetailsPanel({
   error,
   onClose,
 }: DetailsPanelProps) {
+  const { t } = useI18n()
+
   async function openModPage() {
     if (!mod.pageUrl) return
 
@@ -29,7 +32,9 @@ export default function DetailsPanel({
               {mod.name}
             </div>
             <div className="mt-1 text-sm text-zinc-500">
-              by {mod.ownerName || "Unknown"}
+              {t("gamebanana.byAuthor", {
+                author: mod.ownerName || t("gamebanana.unknownAuthor"),
+              })}
             </div>
           </div>
 
@@ -38,15 +43,15 @@ export default function DetailsPanel({
               onClick={openModPage}
               className="rounded-lg bg-pink-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-pink-600"
             >
-              <AppIcon icon={Icons.link} className="mr-2 text-[13px]" />
-              Open
+              <AppIcon icon={Icons.link} className="me-2 text-[13px]" />
+              {t("gamebanana.open")}
             </button>
 
             <button
               onClick={onClose}
               className="rounded-lg bg-zinc-800 px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:bg-zinc-700"
             >
-              Close
+              {t("common.close")}
             </button>
           </div>
         </div>
@@ -54,7 +59,7 @@ export default function DetailsPanel({
         <div className="min-h-0 overflow-y-auto p-4">
           {isLoading ? (
             <div className="py-16 text-center text-sm text-zinc-500">
-              Loading details...
+              {t("gamebanana.loadingDetails")}
             </div>
           ) : error ? (
             <div className="py-16 text-center text-sm text-red-400">
@@ -87,7 +92,7 @@ export default function DetailsPanel({
               {(mod.fileName || mod.downloadUrl) && (
                 <div className="mb-4 rounded-lg border border-zinc-800 bg-zinc-900 p-3">
                   <div className="text-sm font-bold text-zinc-200">
-                    Main File
+                    {t("gamebanana.mainFile")}
                   </div>
 
                   {mod.fileName && (
@@ -103,16 +108,16 @@ export default function DetailsPanel({
                     >
                       <AppIcon
                         icon={Icons.download}
-                        className="mr-2 text-[13px]"
+                        className="me-2 text-[13px]"
                       />
-                      Download
+                      {t("gamebanana.download")}
                     </button>
                   )}
                 </div>
               )}
 
               <div className="whitespace-pre-line text-sm leading-6 text-zinc-300">
-                {mod.fullDescription || "No description available."}
+                {mod.fullDescription || t("gamebanana.noDescription")}
               </div>
             </>
           )}

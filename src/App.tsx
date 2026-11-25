@@ -10,9 +10,13 @@ import GameBanana from "@/pages/GameBanana"
 import { CHANGELOG_BY_VERSION } from "@/data/changelog"
 import { dialog } from "@/lib/dialog";
 import { AppPage } from "./types/app"
+import { useI18n } from "@/i18n"
 
 export default function App() {
+  const { dir, t } = useI18n()
+
   const [activePage, setActivePage] = useState<AppPage>("home")
+  const isHomeOpen = activePage === "home"
   const isSettingsOpen = activePage === "settings"
   const isGameBananaOpen = activePage === "gamebanana"
 
@@ -25,6 +29,10 @@ export default function App() {
   const [isChangelogOpen, setIsChangelogOpen] = useState(false)
 
   const warnedRef = useRef(false)
+
+  function toggleHome() {
+    setActivePage("home")
+  }
 
   function toggleSettings() {
     setActivePage((prev) => (prev === "settings" ? "home" : "settings"))
@@ -39,15 +47,15 @@ export default function App() {
 
     try {
       setIsInstallingUpdate(true)
-      setUpdateStatus("Downloading and installing update...")
+      setUpdateStatus(t("updates.downloadingInstalling"))
 
       await availableUpdate.downloadAndInstall()
 
-      setUpdateStatus("Update installed. Restarting NTEMM...")
+      setUpdateStatus(t("updates.installedRestarting"))
       await relaunch()
     } catch (error) {
       console.error(error)
-      setUpdateStatus("Failed to install update.")
+      setUpdateStatus(t("updates.installFailed"))
     } finally {
       setIsInstallingUpdate(false)
     }
@@ -55,6 +63,13 @@ export default function App() {
 
   useEffect(() => {
     async function checkForUpdatesOnLaunch() {
+      const autoCheckUpdates =
+        localStorage.getItem("autoCheckUpdates") !== "false"
+
+      if (!autoCheckUpdates) {
+        return
+      }
+
       try {
         const update = await check()
 
@@ -62,7 +77,8 @@ export default function App() {
 
         setAvailableUpdate(update)
         setUpdateStatus(
-          update.body?.trim() || `Version ${update.version} is available`,
+          update.body?.trim() ||
+            t("updates.versionAvailable", { version: update.version }),
         )
       } catch (error) {
         console.warn("Update check failed:", error)
@@ -97,7 +113,7 @@ export default function App() {
       const version = await getVersion()
       setChangelogVersion(version)
       setChangelogItems(
-        CHANGELOG_BY_VERSION[version] ?? ["No changelog found"],
+        CHANGELOG_BY_VERSION[version] ?? [t("updates.noChangelogFound")],
       )
       setIsChangelogOpen(true)
     }
@@ -115,10 +131,10 @@ export default function App() {
       if (!savedPath) {
         warnedRef.current = true
         await dialog({
-          title: "Game Folder Required",
-          message: "Please select your Neverness to Everness game folder in Settings before using NTEMM",
+          titleKey: "dialogs.gameFolderRequiredTitle",
+          messageKey: "dialogs.gameFolderRequiredMessage",
           kind: "warning",
-        });
+        })
         setActivePage("settings")
         return
       }
@@ -130,20 +146,20 @@ export default function App() {
         if (!result.valid) {
           warnedRef.current = true
           await dialog({
-            title: "Invalid Game Folder",
-            message: "The saved game folder is no longer valid. Please reselect your Neverness to Everness install folder",
+            titleKey: "dialogs.invalidGameFolderTitle",
+            messageKey: "dialogs.invalidGameFolderMessage",
             kind: "warning",
-          });
+          })
 
           setActivePage("settings")
         }
       } catch {
         warnedRef.current = true
         await dialog({
-          title: "Folder Validation Failed",
-          message: "Failed to validate the saved game folder",
+          titleKey: "dialogs.folderValidationFailedTitle",
+          messageKey: "dialogs.folderValidationFailedMessage",
           kind: "error",
-        });
+        })
 
         setActivePage("settings")
       }
@@ -160,18 +176,20 @@ export default function App() {
   }, [])
 
   return (
-    <div className="font-ui">
+    <div dir={dir} data-dir={dir} className="font-ui">
       
       <AppLayout
+        onOpenHome={toggleHome}
         onOpenSettings={toggleSettings}
         onOpenGameBanana={toggleGameBanana}
+        isHomeOpen={isHomeOpen}
         isSettingsOpen={isSettingsOpen}
         isGameBananaOpen={isGameBananaOpen}
       >
         {activePage === "settings" ? (
-          <Settings onBackHome={() => setActivePage("home")} />
+          <Settings />
         ) : activePage === "gamebanana" ? (
-          <GameBanana onBackHome={() => setActivePage("home")} />
+          <GameBanana />
         ) : (
           <Home onOpenGameBanana={() => setActivePage("gamebanana")} />
         )}
@@ -180,7 +198,7 @@ export default function App() {
       {availableUpdate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
           <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl">
-            <h2 className="text-lg font-bold text-pink-500">A New Version is Available
+            <h2 className="font-subtitle text-lg font-bold text-pink-500">{t("updates.newVersionAvailable")}
               <span className="text-xs text-zinc-400"> v{availableUpdate.version}</span>
             </h2>
 
@@ -196,7 +214,7 @@ export default function App() {
                 disabled={isInstallingUpdate}
                 className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
               >
-                Later
+                {t("updates.later")}
               </button>
 
               <button
@@ -204,7 +222,7 @@ export default function App() {
                 disabled={isInstallingUpdate}
                 className="rounded-lg bg-pink-700 px-4 py-2 text-sm text-white hover:bg-pink-600 disabled:opacity-50"
               >
-                {isInstallingUpdate ? "Installing..." : "Install Update"}
+                {isInstallingUpdate ? t("updates.installing") : t("updates.installUpdate")}
               </button>
             </div>
           </div>
@@ -214,14 +232,20 @@ export default function App() {
       {isChangelogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
           <div className="flex max-h-[calc(100vh-10rem)] w-max max-w-180 flex-col rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl">
-            <h2 className="text-lg font-bold text-pink-500 text-center">What&apos;s New
-              <span className="text-xs text-zinc-400"> in </span>
-              NTEMM
-              <span className="text-xs text-zinc-400"> v{changelogVersion}</span>
+            <h2 className="font-subtitle text-lg font-bold text-pink-500 text-center">
+              <span>{t("updates.whatsNew")}</span>
+              {" "}
+              <span className="text-xs text-zinc-400">{t("updates.in")}</span>
+              {" "}
+              <bdi dir="ltr">NTEMM</bdi>
+              {" "}
+              <bdi dir="ltr" className="text-xs text-zinc-400">
+                v{changelogVersion}
+              </bdi>
             </h2>
 
-            <div className="mt-4 min-h-0 overflow-y-auto pr-2">
-              <ul className="list-disc space-y-2 pl-5 text-sm text-zinc-300">
+            <div className="mt-4 min-h-0 overflow-y-auto pe-2">
+              <ul dir="ltr" className="list-disc space-y-2 ps-5 text-sm text-zinc-300">
                 {changelogItems.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
@@ -233,7 +257,7 @@ export default function App() {
                 onClick={() => setIsChangelogOpen(false)}
                 className="rounded-lg bg-pink-700 px-4 py-2 text-sm text-white hover:bg-pink-600"
               >
-                Got it
+                {t("updates.gotIt")}
               </button>
             </div>
           </div>

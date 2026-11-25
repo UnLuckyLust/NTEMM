@@ -3,6 +3,7 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { PopupArgs, DialogResult, PopupEventPayload } from "@/types/app";
+import { translate } from "@/i18n";
 
 const pending = new Map<string, (result: DialogResult) => Promise<void>>();
 let listenerPromise: Promise<UnlistenFn> | null = null;
@@ -31,11 +32,11 @@ export async function dialog(args: PopupArgs): Promise<DialogResult> {
   try {
     await initPopupListener();
 
-    if (!args.message?.trim()) {
+    if (!args.message?.trim() && !args.messageKey?.trim()) {
       return {
         ok: false,
         error: true,
-        errorMessage: "Popup message is required.",
+        errorMessage: translate("errors.popupMessageRequired"),
       };
     }
 
@@ -43,7 +44,7 @@ export async function dialog(args: PopupArgs): Promise<DialogResult> {
       return {
         ok: false,
         error: true,
-        errorMessage: "Popup kind is required.",
+        errorMessage: translate("errors.popupKindRequired"),
       };
     }
 
@@ -51,15 +52,32 @@ export async function dialog(args: PopupArgs): Promise<DialogResult> {
     const label = `popup-${id}`;
     const title = args.title?.trim() || args.kind;
 
+    const translatedTitle = args.titleKey
+      ? translate(args.titleKey, args.params)
+      : args.title;
+
+    const translatedMessage = args.messageKey
+      ? translate(args.messageKey, args.params)
+      : args.message;
+
+    const translatedOkLabel = args.okLabelKey
+      ? translate(args.okLabelKey, args.params)
+      : args.okLabel;
+
+    const translatedCancelLabel = args.cancelLabelKey
+      ? translate(args.cancelLabelKey, args.params)
+      : args.cancelLabel;
+
     localStorage.setItem(
       `popup:${id}`,
       JSON.stringify({
         ...args,
-        title,
+        title: translatedTitle?.trim() || title,
+        message: translatedMessage?.trim() || "",
         timerTo: args.timerTo ?? "yes",
-        okLabel: args.okLabel?.trim() || "Ok",
+        okLabel: translatedOkLabel?.trim() || translate("common.ok"),
         isCancel: args.isCancel ?? false,
-        cancelLabel: args.cancelLabel?.trim() || "Cancel",
+        cancelLabel: translatedCancelLabel?.trim() || translate("common.cancel"),
       }),
     );
 

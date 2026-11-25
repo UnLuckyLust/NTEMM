@@ -1,15 +1,12 @@
-use crate::gamebanana::models::{
-    GameBananaCacheFile,
-    GameBananaMod,
-    GameBananaModDetails,
-    GameBananaModDetailsCacheFile,
-    GameBananaModsResponse,
+use crate::gamebanana::structs::{
+    GameBananaCacheFile, GameBananaMod, GameBananaModDetails,
+    GameBananaModDetailsCacheFile, GameBananaModsResponse,
 };
-use reqwest::blocking::Client;
+use reqwest::blocking::{Client, Response};
 use serde_json::Value;
 use std::{
     fs,
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tauri::Manager;
@@ -19,48 +16,10 @@ const MANUAL_REFRESH_COOLDOWN_SECONDS: u64 = 60;
 const DETAILS_CACHE_TTL_SECONDS: u64 = 60 * 60 * 6;
 const NTE_GAME_ID: u64 = 23012;
 const PAGE_LIMIT: usize = 30;
+const REQUEST_TIMEOUT_SECONDS: u64 = 15;
 const USER_AGENT: &str = "NTEMM/1.2.0 GameBanana Integration";
 
-#[tauri::command(rename_all = "camelCase")]
-pub async fn get_nte_mods(
-    app: tauri::AppHandle,
-    force_refresh: bool,
-) -> Result<GameBananaModsResponse, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        get_nte_mods_inner(app, force_refresh)
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn get_mod_details(
-    app: tauri::AppHandle,
-    mod_id: u64,
-    force_refresh: bool,
-) -> Result<GameBananaModDetails, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        get_mod_details_inner(app, mod_id, force_refresh)
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
-
-fn response_json(value: reqwest::blocking::Response, context: &str) -> Result<Value, String> {
-    let status = value.status();
-    let text = value
-        .text()
-        .map_err(|e| format!("{context}: failed to read response body: {e}"))?;
-
-    if !status.is_success() {
-        return Err(format!("{context}: HTTP {status}: {text}"));
-    }
-
-    serde_json::from_str::<Value>(&text)
-        .map_err(|e| format!("{context}: failed to parse JSON: {e}. Body: {text}"))
-}
-
-fn get_nte_mods_inner(
+pub(crate) fn get_nte_mods_inner(
     app: tauri::AppHandle,
     force_refresh: bool,
 ) -> Result<GameBananaModsResponse, String> {
@@ -70,15 +29,9 @@ fn get_nte_mods_inner(
     if let Some(cache) = read_cache(&cache_path) {
         let age = now.saturating_sub(cache.saved_at);
 
-        if !force_refresh && age <= CACHE_TTL_SECONDS {
-            return Ok(GameBananaModsResponse {
-                mods: cache.mods,
-                cached: true,
-                cache_age_seconds: age,
-            });
-        }
-
-        if force_refresh && age <= MANUAL_REFRESH_COOLDOWN_SECONDS {
+        if (!force_refresh && age <= CACHE_TTL_SECONDS)
+            || (force_refresh && age <= MANUAL_REFRESH_COOLDOWN_SECONDS)
+        {
             return Ok(GameBananaModsResponse {
                 mods: cache.mods,
                 cached: true,
@@ -104,7 +57,7 @@ fn get_nte_mods_inner(
     })
 }
 
-fn get_mod_details_inner(
+pub(crate) fn get_mod_details_inner(
     app: tauri::AppHandle,
     mod_id: u64,
     force_refresh: bool,
@@ -133,38 +86,45 @@ fn get_mod_details_inner(
     Ok(details)
 }
 
-fn fetch_nte_mods() -> Result<Vec<GameBananaMod>, String> {
-    let client = Client::builder()
-        .timeout(Duration::from_secs(15))
+fn create_client() -> Result<Client, String> {
+    Client::builder()
+        .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECONDS))
         .user_agent(USER_AGENT)
         .build()
-        .map_err(|e| format!("Failed to create GameBanana client: {e}"))?;
+        .map_err(|e| format!("Failed to create GameBanana client: {e}"))
+}
 
-    let url = format!(
-        "https://gamebanana.com/apiv11/Game/{}/Subfeed",
-        NTE_GAME_ID
-    );
+fn response_json(response: Response, context: &str) -> Result<Value, String> {
+    let status = response.status();
+    let text = response
+        .text()
+        .map_err(|e| format!("{context}: failed to read response body: {e}"))?;
+
+    if !status.is_success() {
+        return Err(format!("{context}: HTTP {status}: {text}"));
+    }
+
+    serde_json::from_str::<Value>(&text)
+        .map_err(|e| format!("{context}: failed to parse JSON: {e}. Body: {text}"))
+}
+
+fn fetch_nte_mods() -> Result<Vec<GameBananaMod>, String> {
+    let client = create_client()?;
+    let page_limit = PAGE_LIMIT.to_string();
+    let url = format!("https://gamebanana.com/apiv11/Game/{NTE_GAME_ID}/Subfeed");
 
     let response = client
         .get(url)
-        .query(&[
-            ("_nPage", "1"),
-            ("_nPerpage", &PAGE_LIMIT.to_string()),
-        ])
+        .query(&[("_nPage", "1"), ("_nPerpage", page_limit.as_str())])
         .send()
         .map_err(|e| format!("Failed to request GameBanana mods: {e}"))?;
 
     let value = response_json(response, "GameBanana mods request failed")?;
-
     parse_v11_subfeed_mods(&value)
 }
 
 fn fetch_mod_details(mod_id: u64) -> Result<GameBananaModDetails, String> {
-    let client = Client::builder()
-        .timeout(Duration::from_secs(15))
-        .user_agent(USER_AGENT)
-        .build()
-        .map_err(|e| format!("Failed to create GameBanana client: {e}"))?;
+    let client = create_client()?;
 
     let response = client
         .get(format!("https://gamebanana.com/apiv11/Mod/{mod_id}"))
@@ -176,7 +136,6 @@ fn fetch_mod_details(mod_id: u64) -> Result<GameBananaModDetails, String> {
         .map_err(|e| format!("Failed to request GameBanana mod details: {e}"))?;
 
     let value = response_json(response, "GameBanana mod details request failed")?;
-
     parse_v11_mod_details(mod_id, &value)
 }
 
@@ -257,91 +216,6 @@ fn parse_v11_mod_record(record: &Value) -> Option<GameBananaMod> {
     })
 }
 
-fn find_v11_preview_image(record: &Value) -> Option<String> {
-    value_string_any(record, &["_sImageUrl", "_sPreviewUrl", "_sThumbnailUrl"])
-        .or_else(|| {
-            record
-                .get("_aPreviewMedia")
-                .and_then(|media| media.get("_aImages"))
-                .and_then(Value::as_array)
-                .and_then(|images| images.first())
-                .and_then(build_v11_image_url)
-        })
-        .or_else(|| {
-            record
-                .get("_aPreviewMedia")
-                .and_then(|media| media.get("_aMetadata"))
-                .and_then(|metadata| value_string_any(metadata, &["_sImageUrl", "_sUrl"]))
-        })
-}
-
-fn build_v11_image_url(image: &Value) -> Option<String> {
-    if let Some(url) = value_string_any(image, &["_sUrl", "_sImageUrl"]) {
-        return Some(url);
-    }
-
-    let base_url = value_string_any(image, &["_sBaseUrl"])?;
-    let file = value_string_any(image, &["_sFile", "_sFilename"])?;
-
-    Some(format!(
-        "{}/{}",
-        base_url.trim_end_matches('/'),
-        file.trim_start_matches('/')
-    ))
-}
-
-fn value_string_any(value: &Value, keys: &[&str]) -> Option<String> {
-    keys.iter().find_map(|key| {
-        get_nested_value(value, key)
-            .and_then(Value::as_str)
-            .map(|text| text.trim().to_string())
-            .filter(|text| !text.is_empty())
-    })
-}
-
-fn value_u64_any(value: &Value, keys: &[&str]) -> Option<u64> {
-    keys.iter().find_map(|key| {
-        get_nested_value(value, key).and_then(|item| {
-            item.as_u64()
-                .or_else(|| item.as_i64().and_then(|number| u64::try_from(number).ok()))
-                .or_else(|| item.as_str().and_then(|text| text.parse::<u64>().ok()))
-        })
-    })
-}
-
-fn get_nested_value<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
-    let mut current = value;
-
-    for part in key.split('.') {
-        current = current.get(part)?;
-    }
-
-    Some(current)
-}
-
-fn cleanup_description(description: String) -> String {
-    let cleaned = description
-        .replace("\r\n", "\n")
-        .replace("[b]", "")
-        .replace("[/b]", "")
-        .replace("[i]", "")
-        .replace("[/i]", "")
-        .replace("[u]", "")
-        .replace("[/u]", "")
-        .trim()
-        .to_string();
-
-    const MAX_DESCRIPTION_LENGTH: usize = 180;
-
-    if cleaned.chars().count() <= MAX_DESCRIPTION_LENGTH {
-        return cleaned;
-    }
-
-    let mut shortened = cleaned.chars().take(MAX_DESCRIPTION_LENGTH).collect::<String>();
-    shortened.push('…');
-    shortened
-}
-
 fn parse_v11_mod_details(mod_id: u64, value: &Value) -> Result<GameBananaModDetails, String> {
     let id = value_u64_any(value, &["_idRow", "_idSubmission", "_idItem", "id"]).unwrap_or(mod_id);
 
@@ -364,10 +238,8 @@ fn parse_v11_mod_details(mod_id: u64, value: &Value) -> Result<GameBananaModDeta
 
     let preview_image_url = find_v11_preview_image(value);
     let screenshots = find_v11_screenshots(value);
-
     let page_url = value_string_any(value, &["_sProfileUrl", "_sUrl", "_sLink", "pageUrl"])
         .unwrap_or_else(|| format!("https://gamebanana.com/mods/{id}"));
-
     let (file_name, file_size, download_url) = find_v11_primary_file(value);
 
     Ok(GameBananaModDetails {
@@ -395,18 +267,46 @@ fn parse_v11_mod_details(mod_id: u64, value: &Value) -> Result<GameBananaModDeta
     })
 }
 
+fn find_v11_preview_image(record: &Value) -> Option<String> {
+    value_string_any(record, &["_sImageUrl", "_sPreviewUrl", "_sThumbnailUrl"])
+        .or_else(|| {
+            record
+                .get("_aPreviewMedia")
+                .and_then(|media| media.get("_aImages"))
+                .and_then(Value::as_array)
+                .and_then(|images| images.first())
+                .and_then(build_v11_image_url)
+        })
+        .or_else(|| {
+            record
+                .get("_aPreviewMedia")
+                .and_then(|media| media.get("_aMetadata"))
+                .and_then(|metadata| value_string_any(metadata, &["_sImageUrl", "_sUrl"]))
+        })
+}
+
 fn find_v11_screenshots(value: &Value) -> Vec<String> {
     value
         .get("_aPreviewMedia")
         .and_then(|media| media.get("_aImages"))
         .and_then(Value::as_array)
-        .map(|images| {
-            images
-                .iter()
-                .filter_map(build_v11_image_url)
-                .collect::<Vec<_>>()
-        })
+        .map(|images| images.iter().filter_map(build_v11_image_url).collect())
         .unwrap_or_default()
+}
+
+fn build_v11_image_url(image: &Value) -> Option<String> {
+    if let Some(url) = value_string_any(image, &["_sUrl", "_sImageUrl"]) {
+        return Some(url);
+    }
+
+    let base_url = value_string_any(image, &["_sBaseUrl"])?;
+    let file = value_string_any(image, &["_sFile", "_sFilename"])?;
+
+    Some(format!(
+        "{}/{}",
+        base_url.trim_end_matches('/'),
+        file.trim_start_matches('/')
+    ))
 }
 
 fn find_v11_primary_file(value: &Value) -> (String, u64, Option<String>) {
@@ -449,15 +349,55 @@ fn find_v11_primary_file(value: &Value) -> (String, u64, Option<String>) {
     (file_name, file_size, download_url)
 }
 
+fn value_string_any(value: &Value, keys: &[&str]) -> Option<String> {
+    keys.iter().find_map(|key| {
+        get_nested_value(value, key)
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|text| !text.is_empty())
+            .map(str::to_owned)
+    })
+}
+
+fn value_u64_any(value: &Value, keys: &[&str]) -> Option<u64> {
+    keys.iter().find_map(|key| {
+        get_nested_value(value, key).and_then(|item| {
+            item.as_u64()
+                .or_else(|| item.as_i64().and_then(|number| u64::try_from(number).ok()))
+                .or_else(|| item.as_str().and_then(|text| text.parse::<u64>().ok()))
+        })
+    })
+}
+
+fn get_nested_value<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
+    let mut current = value;
+
+    for part in key.split('.') {
+        current = current.get(part)?;
+    }
+
+    Some(current)
+}
+
+fn cleanup_description(description: String) -> String {
+    const MAX_DESCRIPTION_LENGTH: usize = 180;
+
+    let cleaned = cleanup_basic_formatting(description);
+
+    if cleaned.chars().count() <= MAX_DESCRIPTION_LENGTH {
+        return cleaned;
+    }
+
+    let mut shortened = cleaned
+        .chars()
+        .take(MAX_DESCRIPTION_LENGTH)
+        .collect::<String>();
+    shortened.push('…');
+    shortened
+}
+
 fn cleanup_full_description(description: String) -> String {
-    description
-        .replace("\r\n", "\n")
-        .replace("[b]", "")
-        .replace("[/b]", "")
-        .replace("[i]", "")
-        .replace("[/i]", "")
-        .replace("[u]", "")
-        .replace("[/u]", "")
+    cleanup_basic_formatting(description)
         .replace("[url]", "")
         .replace("[/url]", "")
         .replace("[img]", "")
@@ -466,7 +406,34 @@ fn cleanup_full_description(description: String) -> String {
         .to_string()
 }
 
+fn cleanup_basic_formatting(description: String) -> String {
+    description
+        .replace("\r\n", "\n")
+        .replace("[b]", "")
+        .replace("[/b]", "")
+        .replace("[i]", "")
+        .replace("[/i]", "")
+        .replace("[u]", "")
+        .replace("[/u]", "")
+        .trim()
+        .to_string()
+}
+
 fn cache_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let cache_dir = gamebanana_cache_dir(app)?;
+    Ok(cache_dir.join("nte_mods.json"))
+}
+
+fn details_cache_path(app: &tauri::AppHandle, mod_id: u64) -> Result<PathBuf, String> {
+    let cache_dir = gamebanana_cache_dir(app)?.join("details");
+
+    fs::create_dir_all(&cache_dir)
+        .map_err(|e| format!("Failed to create GameBanana details cache dir: {e}"))?;
+
+    Ok(cache_dir.join(format!("{mod_id}.json")))
+}
+
+fn gamebanana_cache_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let cache_dir = app
         .path()
         .app_cache_dir()
@@ -476,19 +443,41 @@ fn cache_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     fs::create_dir_all(&cache_dir)
         .map_err(|e| format!("Failed to create GameBanana cache dir: {e}"))?;
 
-    Ok(cache_dir.join("nte_mods.json"))
+    Ok(cache_dir)
 }
 
-fn read_cache(path: &PathBuf) -> Option<GameBananaCacheFile> {
+fn read_cache(path: &Path) -> Option<GameBananaCacheFile> {
+    read_json_file(path)
+}
+
+fn write_cache(path: &Path, cache: &GameBananaCacheFile) -> Result<(), String> {
+    write_json_file(path, cache, "GameBanana cache")
+}
+
+fn read_details_cache(path: &Path) -> Option<GameBananaModDetailsCacheFile> {
+    read_json_file(path)
+}
+
+fn write_details_cache(path: &Path, cache: &GameBananaModDetailsCacheFile) -> Result<(), String> {
+    write_json_file(path, cache, "GameBanana details cache")
+}
+
+fn read_json_file<T>(path: &Path) -> Option<T>
+where
+    T: serde::de::DeserializeOwned,
+{
     let text = fs::read_to_string(path).ok()?;
-    serde_json::from_str::<GameBananaCacheFile>(&text).ok()
+    serde_json::from_str(&text).ok()
 }
 
-fn write_cache(path: &PathBuf, cache: &GameBananaCacheFile) -> Result<(), String> {
-    let text = serde_json::to_string_pretty(cache)
-        .map_err(|e| format!("Failed to serialize GameBanana cache: {e}"))?;
+fn write_json_file<T>(path: &Path, value: &T, context: &str) -> Result<(), String>
+where
+    T: serde::Serialize,
+{
+    let text = serde_json::to_string_pretty(value)
+        .map_err(|e| format!("Failed to serialize {context}: {e}"))?;
 
-    fs::write(path, text).map_err(|e| format!("Failed to write GameBanana cache: {e}"))
+    fs::write(path, text).map_err(|e| format!("Failed to write {context}: {e}"))
 }
 
 fn current_unix_time() -> Result<u64, String> {
@@ -496,36 +485,4 @@ fn current_unix_time() -> Result<u64, String> {
         .duration_since(UNIX_EPOCH)
         .map_err(|e| format!("System time error: {e}"))?
         .as_secs())
-}
-
-fn details_cache_path(
-    app: &tauri::AppHandle,
-    mod_id: u64,
-) -> Result<PathBuf, String> {
-    let cache_dir = app
-        .path()
-        .app_cache_dir()
-        .map_err(|e| format!("Failed to get app cache dir: {e}"))?
-        .join("gamebanana")
-        .join("details");
-
-    fs::create_dir_all(&cache_dir)
-        .map_err(|e| format!("Failed to create GameBanana details cache dir: {e}"))?;
-
-    Ok(cache_dir.join(format!("{mod_id}.json")))
-}
-
-fn read_details_cache(path: &PathBuf) -> Option<GameBananaModDetailsCacheFile> {
-    let text = fs::read_to_string(path).ok()?;
-    serde_json::from_str::<GameBananaModDetailsCacheFile>(&text).ok()
-}
-
-fn write_details_cache(
-    path: &PathBuf,
-    cache: &GameBananaModDetailsCacheFile,
-) -> Result<(), String> {
-    let text = serde_json::to_string_pretty(cache)
-        .map_err(|e| format!("Failed to serialize GameBanana details cache: {e}"))?;
-
-    fs::write(path, text).map_err(|e| format!("Failed to write GameBanana details cache: {e}"))
 }

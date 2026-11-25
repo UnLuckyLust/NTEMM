@@ -1,8 +1,9 @@
-import { useLayoutEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { ImportedMod, ModUiStatus } from "@/types/modManager"
 import { convertFileSrc } from "@tauri-apps/api/core"
 import AppIcon from "../ui/AppIcon"
 import { Icons } from "@/lib/icons"
+import { useI18n } from "@/i18n"
 
 function getStatusClassName(status: ModUiStatus) {
   if (status === "Enabled") return "bg-green-950/60 text-green-300"
@@ -13,7 +14,7 @@ function getStatusClassName(status: ModUiStatus) {
 
 const getFilesListClassName = (expanded: boolean) =>
   [
-    "flex flex-wrap gap-1 overflow-y-auto overflow-x-hidden pr-1",
+    "flex flex-wrap gap-1 overflow-y-auto overflow-x-hidden pe-1",
     expanded ? "max-h-19" : "max-h-6",
   ].join(" ")
 
@@ -21,14 +22,20 @@ export function ModCard(props: {
   mod: ImportedMod
   draggable?: boolean
   onPointerDragStart?: () => void
+  onPointerDragEnter?: () => void
+  onPointerDragEnd?: () => void
   isDraggingThis?: boolean
   selectedMods: string[]
   toggleModSelection: (name: string) => void
   getModStatus: (name: string) => ModUiStatus
   removeImportedMod: (name: string) => void
+  renameImportedMod?: (oldName: string, newName: string) => Promise<string | null>
+  getModRenameError?: (oldName: string, newName: string) => string
   changePakModIcon?: (modName: string) => void
   clearPakModIconForMod?: (modName: string) => void
 }) {
+  const { t } = useI18n()
+
   const {
     mod,
     draggable = false,
@@ -36,13 +43,20 @@ export function ModCard(props: {
     toggleModSelection,
     getModStatus,
     removeImportedMod,
+    renameImportedMod,
+    getModRenameError,
     changePakModIcon,
     clearPakModIconForMod,
     onPointerDragStart,
+    onPointerDragEnter,
+    onPointerDragEnd,
     isDraggingThis,
   } = props
 
   const [expanded, setExpanded] = useState(false)
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [renameValue, setRenameValue] = useState(mod.name)
+  const [renameError, setRenameError] = useState("")
   const [openPreviewIndex, setOpenPreviewIndex] = useState<number | null>(null)
   const filesListRef = useRef<HTMLDivElement | null>(null)
   const [filesListOverflows, setFilesListOverflows] = useState(false)
@@ -94,6 +108,47 @@ export function ModCard(props: {
     )
   }
 
+  useEffect(() => {
+    setRenameValue(mod.name)
+    setRenameError("")
+    setIsRenaming(false)
+  }, [mod.name])
+
+  const cancelRename = () => {
+    setRenameValue(mod.name)
+    setRenameError("")
+    setIsRenaming(false)
+  }
+
+  const commitRename = async () => {
+    if (!isRenaming) return
+
+    const nextName = renameValue.trim()
+
+    if (nextName === mod.name) {
+      cancelRename()
+      return
+    }
+
+    const error = getModRenameError?.(mod.name, nextName) ?? ""
+
+    if (error) {
+      setRenameError(error)
+      return
+    }
+
+    const renamedName = await renameImportedMod?.(mod.name, nextName)
+
+    if (!renamedName) {
+      setRenameValue(mod.name)
+      return
+    }
+
+    setRenameValue(renamedName)
+    setRenameError("")
+    setIsRenaming(false)
+  }
+
   useLayoutEffect(() => {
     const element = filesListRef.current
     if (!element) {
@@ -130,6 +185,14 @@ export function ModCard(props: {
         e.preventDefault()
         onPointerDragStart?.()
       }}
+      onPointerEnter={() => {
+        if (!draggable) return
+        onPointerDragEnter?.()
+      }}
+      onPointerUp={() => {
+        if (!draggable) return
+        onPointerDragEnd?.()
+      }}
       className={`min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/50 p-3 ${
         draggable ? "cursor-grab active:cursor-grabbing" : ""
       } ${isDraggingThis ? "border-pink-500 bg-pink-950/30 opacity-70" : ""}`}
@@ -145,7 +208,7 @@ export function ModCard(props: {
                 clearPakModIconForMod?.(mod.name)
               }}
               className="h-14 w-14 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900 hover:border-pink-500"
-              title={mod.iconPath ? "Click to change icon, right-click to clear" : "Change mod icon"}
+              title={mod.iconPath ? t("mods.modCard.changeIconOrClear") : t("mods.modCard.changeIcon")}
             >
               {mod.iconPath ? (
                 <img
@@ -169,19 +232,53 @@ export function ModCard(props: {
                 <div className="flex gap-2 items-center notDraggable cursor-pointer"
                 onClick={() => toggleModSelection(mod.name)}>
                   <input
-                    title="toggle"
+                    title={t("mods.modCard.toggle")}
                     type="checkbox"
                     checked={selectedMods.includes(mod.name)}
                     onChange={(e) => e.preventDefault}
                   />
 
-                  <div className="truncate font-semibold text-zinc-100 notDraggable">
-                    {displayName}
-                  </div>
+                    {isRenaming ? (
+                      <div
+                        className="font-subtitle notDraggable flex min-w-0 flex-col"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          autoFocus
+                          title={t("mods.modCard.renameMod")}
+                          value={renameValue}
+                          onChange={(e) => {
+                            setRenameValue(e.target.value)
+                            setRenameError(getModRenameError?.(mod.name, e.target.value) ?? "")
+                          }}
+                          onBlur={commitRename}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.currentTarget.blur()
+                            }
+
+                            if (e.key === "Escape") {
+                              cancelRename()
+                            }
+                          }}
+                          className="min-w-40 rounded border border-zinc-700 bg-zinc-950 px-2 py-0.5 text-sm font-semibold text-zinc-100 outline-none focus:border-pink-500"
+                        />
+
+                        {renameError && (
+                          <div className="mt-1 text-xs text-red-400">
+                            {renameError}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="font-subtitle truncate font-semibold text-zinc-100 notDraggable">
+                        {displayName}
+                      </div>
+                    )}
                 </div>
 
                 <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${getStatusClassName(status)}`}>
-                  {status}
+                  {t(`mods.status.${status}`)}
                 </span>
 
                 {meta?.version && (
@@ -192,7 +289,7 @@ export function ModCard(props: {
 
                 {meta?.author && (
                   <span className="truncate text-xs text-zinc-400">
-                    by {meta.author}
+                    {t("mods.byAuthor", { author: meta.author })}
                   </span>
                 )}
               </div>
@@ -220,7 +317,7 @@ export function ModCard(props: {
                         rel="noreferrer"
                         className="text-pink-300 hover:underline"
                       >
-                        Mod Page
+                        {t("mods.modCard.modPage")}
                       </a>
                     )}
 
@@ -231,7 +328,7 @@ export function ModCard(props: {
                         rel="noreferrer"
                         className="text-pink-300 hover:underline"
                       >
-                        Author Support
+                        {t("mods.modCard.authorSupport")}
                       </a>
                     )}
                   </div>
@@ -265,7 +362,7 @@ export function ModCard(props: {
                   type="button"
                   onClick={() => openPreview(0)}
                   className="rounded-lg text-sm p-1 text-zinc-500 hover:text-zinc-100"
-                  title="Show preview images"
+                  title={t("mods.modCard.showPreviewImages")}
                 >
                   <AppIcon icon={Icons.images} />
                 </button>
@@ -273,7 +370,7 @@ export function ModCard(props: {
 
               {canExpand && (
                 <button
-                  title="Expand/Collapse exten ded mod info"
+                  title={t("mods.expandCollapse")}
                   type="button"
                   onClick={() => setExpanded((value) => !value)}
                   className="rounded-lg text-sm p-1 text-zinc-500 hover:text-zinc-100"
@@ -282,9 +379,24 @@ export function ModCard(props: {
                 </button>
               )}
 
+              {renameImportedMod && (
+                <button
+                  type="button"
+                  title={t("mods.modCard.renameMod")}
+                  onClick={() => {
+                    setRenameValue(mod.name)
+                    setRenameError("")
+                    setIsRenaming(true)
+                  }}
+                  className="rounded-lg text-sm p-1 text-zinc-500 hover:text-zinc-100"
+                >
+                  <AppIcon icon={Icons.edit} />
+                </button>
+              )}
+
               <button
                 type="button"
-                title="Delete mod"
+                title={t("mods.modCard.deleteMod")}
                 onClick={() => removeImportedMod(mod.name)}
                 className="rounded-lg text-sm p-1 text-red-800 hover:text-red-500"
               >
@@ -310,7 +422,7 @@ export function ModCard(props: {
                       rel="noreferrer"
                       className="text-pink-300 hover:underline"
                     >
-                      Mod Page
+                      {t("mods.modCard.modPage")}
                     </a>
                   )}
 
@@ -321,7 +433,7 @@ export function ModCard(props: {
                       rel="noreferrer"
                       className="text-pink-300 hover:underline"
                     >
-                      Author Support
+                      {t("mods.modCard.authorSupport")}
                     </a>
                   )}
                 </div>
@@ -349,12 +461,12 @@ export function ModCard(props: {
                       type="button"
                       onClick={() => openPreview(index)}
                       className="h-24 w-36 shrink-0 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900 hover:border-pink-500"
-                      title="Open preview"
+                      title={t("mods.modCard.openPreview")}
                     >
                       <img
                         src={convertFileSrc(imagePath)}
                         className="h-full w-full object-cover"
-                        alt="Mod preview"
+                        alt={t("mods.modCard.modPreviewAlt")}
                         loading="lazy"
                       />
                     </button>
@@ -394,7 +506,7 @@ export function ModCard(props: {
             <img
               src={convertFileSrc(openPreviewPath)}
               className="notDraggable max-h-[70vh] max-w-[70vw] rounded-xl border border-zinc-800 object-contain"
-              alt="Mod preview"
+              alt={t("mods.modCard.modPreviewAlt")}
             />
 
             <div className="flex gap-2 absolute bottom-60 left-1/2 -translate-x-1/2">
@@ -406,7 +518,7 @@ export function ModCard(props: {
                   closePreview()
                 }}
               >
-                Close
+                {t("common.close")}
               </button>
 
               <button
@@ -416,7 +528,7 @@ export function ModCard(props: {
                   e.stopPropagation()
                   showPrevPreview()
                 }}
-                title="Previous preview"
+                title={t("mods.modCard.previousPreview")}
               >
                 <AppIcon icon={"caret-left"}/>
               </button>
@@ -434,7 +546,7 @@ export function ModCard(props: {
                   e.stopPropagation()
                   showNextPreview()
                 }}
-                title="Next preview"
+                title={t("mods.modCard.nextPreview")}
               >
                 <AppIcon icon={"caret-right"}/>
               </button>

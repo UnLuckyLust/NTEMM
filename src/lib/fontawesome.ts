@@ -65,6 +65,12 @@ import {
   faPuzzlePiece,
   faDownload,
   faArrowUpRightFromSquare,
+  faBoxArchive,
+  faInbox,
+  faFolderOpen,
+  faMagnifyingGlass,
+  faArrowDownShortWide,
+  faHome,
 } from "@fortawesome/free-solid-svg-icons"
 
 import { faSquare } from "@fortawesome/free-regular-svg-icons"
@@ -138,6 +144,12 @@ library.add(
   faHeart,
   faDownload,
   faArrowUpRightFromSquare,
+  faBoxArchive,
+  faInbox,
+  faFolderOpen,
+  faMagnifyingGlass,
+  faArrowDownShortWide,
+  faHome,
   
   faSquare,
 

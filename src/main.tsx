@@ -1,9 +1,9 @@
-// import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import PopupWindow from "@/components/PopupWindow";
 import { restoreStateCurrent, saveWindowState, StateFlags, } from "@tauri-apps/plugin-window-state";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { I18nProvider } from "@/i18n"
 import "./App.css";
 import "./lib/fontawesome";
 
@@ -31,8 +31,10 @@ function startApp() {
   }
 
   ReactDOM.createRoot(document.getElementById("root")!).render(
-    isPopup ? <PopupWindow /> : <App />,
-  );
+    <I18nProvider>
+      {isPopup ? <PopupWindow /> : <App />}
+    </I18nProvider>,
+  )
 
   if (!isPopup) {
     window.setTimeout(() => {

@@ -1,15 +1,14 @@
 import type { IconProp } from "@fortawesome/fontawesome-svg-core"
 
 export const Icons: Record<string, IconProp> = {
-  // window
   minimize: "minus",
   maximize: ["far", "square"],
   restore: "clone",
   close: "xmark",
+  home: "home",
   reset: "rotate-left",
   settings: "gear",
 
-  // ui
   import: "file-import",
   save: "floppy-disk",
   menu: "bars",
@@ -34,6 +33,7 @@ export const Icons: Record<string, IconProp> = {
   mugHot: "mug-hot",
   file: "file-circle-plus",
   folder: "folder-plus",
+  folderOpen: "folder-open",
   collapse: "up-right-and-down-left-from-center",
   expand: "down-left-and-up-right-to-center",
   panorma: "panorama",
@@ -45,9 +45,10 @@ export const Icons: Record<string, IconProp> = {
   heart: "heart",
   download: "download",
   link: "arrow-up-right-from-square",
-
-  github: ["fab", "github"],
-  
+  boxArchive: "box-archive",
+  inbox: "inbox",
+  search: "magnifying-glass",
+  sort: "arrow-down-short-wide",
   hp: "heart",
   stamina: "bolt",
   spirit: "brain",
@@ -56,7 +57,6 @@ export const Icons: Record<string, IconProp> = {
   exptrust: "medal",
   battledamage: "skull",
   yieldluck: "dice",
-
   all: "layer-group",
   ammo: "bullseye",
   consumable: "flask",
@@ -68,4 +68,6 @@ export const Icons: Record<string, IconProp> = {
   unknown: "circle-question",
   circleQuestion: "circle-question",
   layerGroup: "layer-group",
+
+  github: ["fab", "github"],
 }

@@ -9,10 +9,12 @@ import { ModsSection } from "@/components/home/ModsSection"
 import { useModManager } from "@/hooks/useModManager"
 import { HudScaleCard } from "@/components/home/HudScaleCard"
 import { AnticensorCard } from "@/components/home/AnticensorCard"
-import { UiModsCard } from "@/components/home/UiModsCard"
+import { UIDCard } from "@/components/home/UIDCard"
 import { HomeProps } from "@/interfaces/app"
+import { useI18n } from "@/i18n"
 
-export default function Home({ /* onOpenGameBanana */ }: HomeProps) {
+export default function Home({ onOpenGameBanana }: HomeProps) {
+  const { t } = useI18n()
   const { state, actions } = useModManager()
   const [gamePath, setGamePath] = useState(() => localStorage.getItem("gameFolder") ?? "")
 
@@ -50,37 +52,33 @@ export default function Home({ /* onOpenGameBanana */ }: HomeProps) {
 
       <div className="flex gap-2 overflow-hidden w-full h-full max-w-400">
         <div className="flex flex-col gap-2 min-w-110">
-          {/* <button
+          <button
             onClick={onOpenGameBanana}
             className="group flex w-full items-center justify-center gap-2 rounded-xl border border-pink-800 bg-zinc-900 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-zinc-950 transition-all duration-200 hover:bg-pink-800 hover:text-white active:scale-[0.98]"
           >
             <div className="page-icon-mask icon-gamebanana transition-transform duration-200 group-hover:scale-110" />
-            Browse GameBanana Mods
-          </button> */}
+            {t("gamebanana.browseMods")}
+          </button>
 
-          <HudScaleCard gamePath={gamePath} />
-          <AnticensorCard
-            selected={state.anticensorSelected}
-            status={actions.getBundledModStatus(
-              state.anticensorInstalled,
-              state.anticensorSelected,
-            )}
-            onToggle={() => actions.setAnticensorSelected((value) => !value)}
-          />
-          <UiModsCard
-            hideUidSelected={state.hideUidSelected}
-            // hidePingSelected={state.hidePingSelected}
-            hideUidStatus={actions.getBundledModStatus(
-              state.hideUidInstalled,
-              state.hideUidSelected,
-            )}
-            // hidePingStatus={actions.getBundledModStatus(
-            //   state.hidePingInstalled,
-            //   state.hidePingSelected,
-            // )}
-            onToggleHideUid={() => actions.setHideUidSelected((value) => !value)}
-            // onToggleHidePing={() => actions.setHidePingSelected((value) => !value)}
-          />
+          <div className="flex flex-col gap-1 min-w-110 bg-zinc-900 rounded-xl p-4 h-max">
+            <HudScaleCard gamePath={gamePath} />
+            <AnticensorCard
+              selected={state.anticensorSelected}
+              status={actions.getBundledModStatus(
+                state.anticensorInstalled,
+                state.anticensorSelected,
+              )}
+              onToggle={() => actions.setAnticensorSelected((value) => !value)}
+            />
+            <UIDCard
+              hideUidSelected={state.hideUidSelected}
+              hideUidStatus={actions.getBundledModStatus(
+                state.hideUidInstalled,
+                state.hideUidSelected,
+              )}
+              onToggleHideUid={() => actions.setHideUidSelected((value) => !value)}
+            />
+          </div>
         </div>
 
         <div className="flex flex-col w-full overflow-auto">
@@ -99,9 +97,13 @@ export default function Home({ /* onOpenGameBanana */ }: HomeProps) {
             onAddCategoryClick={() => actions.setShowCategoryDialog(true)}
             onRefresh={actions.refreshDetectedState}
             onBeginPakDrag={actions.beginInternalPakDrag}
+            onMovePakModDragOver={actions.movePakModDragOver}
+            onEndPakDrag={actions.endPakDrag}
             toggleModSelection={actions.toggleModSelection}
             getModStatus={actions.getModStatus}
             removeImportedMod={actions.removeImportedMod}
+            renameImportedMod={actions.renameImportedMod}
+            getModRenameError={actions.getModRenameError}
             updatePakCategoryName={actions.updatePakCategoryName}
             revertPakCategoryName={actions.revertPakCategoryName}
             movePakCategory={actions.movePakCategory}

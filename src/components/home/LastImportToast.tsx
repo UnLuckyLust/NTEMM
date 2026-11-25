@@ -1,5 +1,6 @@
 import type { ImportResult } from "@/types/modManager"
 
+import { useI18n } from "@/i18n"
 export function LastImportToast({
   lastImport,
   showLastImport,
@@ -7,6 +8,8 @@ export function LastImportToast({
   lastImport: ImportResult | null
   showLastImport: boolean
 }) {
+  const { t } = useI18n()
+
   if (!lastImport) return null
 
   return (
@@ -15,8 +18,8 @@ export function LastImportToast({
         showLastImport ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
       }`}
     >
-      <div className="font-semibold">Imported: {lastImport.mod_name}</div>
-      <div className="mt-1 text-green-200/80">Files copied: {lastImport.copied_files.length}</div>
+      <div className="font-semibold">{t("mods.lastImport.imported", { modName: lastImport.mod_name })}</div>
+      <div className="mt-1 text-green-200/80">{t("mods.lastImport.filesCopied", { count: lastImport.copied_files.length })}</div>
     </div>
   )
 }

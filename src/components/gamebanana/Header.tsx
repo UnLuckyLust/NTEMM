@@ -1,4 +1,5 @@
 import AppIcon from "@/components/ui/AppIcon"
+import { useI18n } from "@/i18n"
 import { Icons } from "@/lib/icons"
 
 interface GameBananaHeaderProps {
@@ -14,14 +15,16 @@ export default function GameBananaHeader({
   isRefreshing,
   onRefresh,
 }: GameBananaHeaderProps) {
+  const { t } = useI18n()
+
   return (
   <div className="flex items-center justify-between gap-4 border-b border-zinc-800 pb-3">
     <div>
       <div className="text-lg font-bold text-pink-500">
-        GameBanana Mods
+        {t("gamebanana.title")}
       </div>
       <div className="text-sm text-zinc-500">
-        Browse Neverness to Everness mods from GameBanana
+        {t("gamebanana.description")}
       </div>
     </div>
 
@@ -35,9 +38,9 @@ export default function GameBananaHeader({
       >
         <AppIcon
           icon={Icons.refresh}
-          className={`mr-2 text-[13px] ${isRefreshing ? "fa-spin" : ""}`}
+          className={`me-2 text-[13px] ${isRefreshing ? "fa-spin" : ""}`}
         />
-        {isRefreshing ? "Refreshing..." : "Refresh"}
+        {isRefreshing ? t("gamebanana.refreshing") : t("gamebanana.refresh")}
       </button>
     </div>
   </div>

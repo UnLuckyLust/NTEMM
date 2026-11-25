@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react"
-import AppIcon from "@/components/ui/AppIcon"
 import Header from "@/components/gamebanana/Header"
 import ModGrid from "@/components/gamebanana/ModGrid"
-import { Icons } from "@/lib/icons"
-import { GameBananaProps } from "@/interfaces/app"
 import { formatCacheAge } from "@/utils/gamebanana"
 import DetailsPanel from "@/components/gamebanana/DetailsPanel"
 import { getModDetails, getNteMods } from "@/api/gamebanana"
 import type { Mod, ModDetails } from "@/types/gamebanana"
+import { useI18n } from "@/i18n"
 
-export default function GameBanana({ onBackHome }: GameBananaProps) {
+export default function GameBanana() {
+  const { t } = useI18n()
   const [mods, setMods] = useState<Mod[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -38,7 +37,7 @@ export default function GameBanana({ onBackHome }: GameBananaProps) {
       setCacheAgeSeconds(result.cacheAgeSeconds)
     } catch (err) {
       console.error(err)
-      setError("Failed to load GameBanana mods.")
+      setError(t("gamebanana.errors.loadModsFailed"))
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)
@@ -51,10 +50,10 @@ export default function GameBanana({ onBackHome }: GameBananaProps) {
 
   const cacheText =
     cached && cacheAgeSeconds > 0
-      ? `Cached ${formatCacheAge(cacheAgeSeconds)} ago`
+      ? t("gamebanana.cache.cachedAgo", { age: formatCacheAge(cacheAgeSeconds) })
       : cached
-        ? "Loaded from cache"
-        : "Fresh data"
+        ? t("gamebanana.cache.loadedFromCache")
+        : t("gamebanana.cache.freshData")
 
   async function openModDetails(mod: Mod) {
     try {
@@ -73,7 +72,7 @@ export default function GameBanana({ onBackHome }: GameBananaProps) {
       setSelectedMod(details)
     } catch (err) {
       console.error(err)
-      setDetailsError("Failed to load mod details.")
+      setDetailsError(t("gamebanana.errors.loadDetailsFailed"))
     } finally {
       setIsDetailsLoading(false)
     }
@@ -81,18 +80,6 @@ export default function GameBanana({ onBackHome }: GameBananaProps) {
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col items-center gap-2 overflow-hidden p-6">
-      <div className="w-full max-w-400">
-        <section className="w-max rounded-xl bg-zinc-900 p-1">
-          <button
-            onClick={onBackHome}
-            className="rounded-lg p-2 text-sm font-semibold text-zinc-400 hover:bg-zinc-700"
-          >
-            <AppIcon icon={Icons.anglesLeft} className="mr-2 text-[15px]" />
-            Back to Home
-          </button>
-        </section>
-      </div>
-
       <section className="relative flex min-h-0 w-full max-w-400 flex-1 flex-col rounded-xl bg-zinc-900 p-4">
         <Header
           cacheText={cacheText}
@@ -103,7 +90,7 @@ export default function GameBanana({ onBackHome }: GameBananaProps) {
 
         {isLoading ? (
           <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-zinc-500">
-            Loading GameBanana mods...
+            {t("gamebanana.loadingMods")}
           </div>
         ) : error ? (
           <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-red-400">
@@ -111,7 +98,7 @@ export default function GameBanana({ onBackHome }: GameBananaProps) {
           </div>
         ) : mods.length === 0 ? (
           <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-zinc-500">
-            No GameBanana mods found for NTE yet.
+            {t("gamebanana.empty")}
           </div>
         ) : (
           <ModGrid mods={mods} onOpenDetails={openModDetails} />

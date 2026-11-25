@@ -1,22 +1,21 @@
-use serde::{Deserialize, Serialize};
 use std::{
     fs,
     path::{Path, PathBuf},
 };
 
 use crate::app::utils::copy_if_changed;
-use crate::game::game::validate;
+use super::game_functions::validate;
+use super::structs::LoaderFilesCheck;
 use crate::mods::ui_mods::remove_all_ui_mods;
 
 const DEFAULT_GLOBAL_PROXY_DLL_NAMES: &[&str] = &["version.dll"];
 const DEFAULT_CN_PROXY_DLL_NAMES: &[&str] = &["dsound.dll", "dinput8.dll"];
-const DEFAULT_TW_PROXY_DLL_NAMES: &[&str] = &["version.dll"];
 const LEGACY_PROXY_DLL_NAMES: &[&str] = &["version.dll", "dsound.dll", "dinput8.dll"];
 
 fn default_loader_proxy_names(game_version: &str) -> Vec<String> {
     match game_version {
         "cn" => DEFAULT_CN_PROXY_DLL_NAMES,
-        "tw" => DEFAULT_TW_PROXY_DLL_NAMES,
+        "global" | "steam" | "epic" | "tw" => DEFAULT_GLOBAL_PROXY_DLL_NAMES,
         _ => DEFAULT_GLOBAL_PROXY_DLL_NAMES,
     }
     .iter()
@@ -102,7 +101,7 @@ fn app_mod_storage_root() -> Result<PathBuf, String> {
 
     exe.parent()
         .map(|parent| parent.join("NTEMM_Mods"))
-        .ok_or_else(|| "Failed to resolve app folder".to_string())
+        .ok_or_else(|| "errors.failedResolveAppFolder".to_string())
 }
 
 fn remove_file_if_exists(path: &Path) -> Result<(), String> {
@@ -185,21 +184,6 @@ fn remove_imported_asi_files(game_path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LoaderFilesCheck {
-    pub valid: bool,
-    pub loader_dir: String,
-
-    pub asi_found: bool,
-    pub cutils_found: bool,
-    pub proxy_dll_found: bool,
-    pub proxy_dll_names: Vec<String>,
-
-    pub missing_files: Vec<String>,
-    pub message: String,
-}
-
 pub fn check_loader_files_inner(
     path: &str,
     proxy_dll_names: Option<Vec<String>>,
@@ -223,7 +207,7 @@ pub fn check_loader_files_inner(
             proxy_dll_names,
 
             missing_files: vec!["No loader DLL files selected".to_string()],
-            message: "No loader DLL files selected".to_string(),
+            message_key: "backend.noLoaderDllFilesSelected".to_string(),
         };
     }
 
@@ -260,16 +244,15 @@ pub fn check_loader_files_inner(
 
         missing_files,
 
-        message: if valid {
-            "Selected loader files are installed".to_string()
+        message_key: if valid {
+            "backend.selectedLoaderFilesInstalled".to_string()
         } else {
-            "Selected loader files are missing".to_string()
+            "backend.selectedLoaderFilesMissing".to_string()
         },
     }
 }
 
-#[tauri::command(rename_all = "camelCase")]
-pub async fn check_loader_files(
+pub async fn check_loader_files_command_inner(
     path: String,
     proxy_dll_names: Option<Vec<String>>,
 ) -> Result<LoaderFilesCheck, String> {
@@ -295,7 +278,7 @@ fn install_loader_files_inner_with_resource_root(
     let game_check = validate(game_path);
 
     if !game_check.valid {
-        return Err("Invalid game folder".to_string());
+        return Err("errors.invalidGameFolder".to_string());
     }
 
     let proxy_dll_names = normalize_loader_proxy_names(proxy_dll_names, &game_check.game_version);
@@ -305,7 +288,7 @@ fn install_loader_files_inner_with_resource_root(
 
     let base_files = [
         (
-            bundled_loader_dir.join("loader.asi"),
+            bundled_loader_dir.join("usb.asi"),
             loader_dir.join("loader.asi"),
         ),
         (
@@ -372,7 +355,7 @@ pub fn uninstall_loader_files_inner(
     let game_check = validate(Path::new(&path));
 
     if !game_check.valid {
-        return Err("Invalid game folder".to_string());
+        return Err("errors.invalidGameFolder".to_string());
     }
 
     let files = [
@@ -403,7 +386,7 @@ pub fn clean_game_mods_inner(
     let game_check = validate(game_path);
 
     if !game_check.valid {
-        return Err("Invalid game folder".to_string());
+        return Err("errors.invalidGameFolder".to_string());
     }
 
     let loader_dir = loader_target_dir(game_path);
@@ -431,8 +414,7 @@ pub fn clean_game_mods_inner(
     Ok(check_loader_files_inner(&path, None))
 }
 
-#[tauri::command(rename_all = "camelCase")]
-pub async fn clean_game_mods(
+pub async fn clean_game_mods_command_inner(
     path: String,
     all_proxy_dll_names: Option<Vec<String>>,
 ) -> Result<LoaderFilesCheck, String> {
@@ -451,8 +433,7 @@ pub async fn clean_game_mods(
     .map_err(|e| e.to_string())?
 }
 
-#[tauri::command(rename_all = "camelCase")]
-pub async fn install_loader_files(
+pub async fn install_loader_files_command_inner(
     path: String,
     proxy_dll_names: Option<Vec<String>>,
     all_proxy_dll_names: Option<Vec<String>>,
@@ -472,8 +453,7 @@ pub async fn install_loader_files(
     .map_err(|e| e.to_string())?
 }
 
-#[tauri::command(rename_all = "camelCase")]
-pub async fn uninstall_loader_files(
+pub async fn uninstall_loader_files_command_inner(
     path: String,
     all_proxy_dll_names: Option<Vec<String>>,
 ) -> Result<LoaderFilesCheck, String> {

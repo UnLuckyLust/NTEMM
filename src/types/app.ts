@@ -23,13 +23,18 @@ export type PopupKind = "info" | "warning" | "success" | "error";
 
 export type PopupArgs = {
   title?: string;
-  message: string;
+  titleKey?: string;
+  message?: string;
+  messageKey?: string;
+  params?: Record<string, string | number | boolean | null | undefined>;
   kind: PopupKind;
   timer?: number;
   timerTo?: "yes" | "no";
   okLabel?: string;
+  okLabelKey?: string;
   isCancel?: boolean;
   cancelLabel?: string;
+  cancelLabelKey?: string;
 };
 
 export type DialogResult = {

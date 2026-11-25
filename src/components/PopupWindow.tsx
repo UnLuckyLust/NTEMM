@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { emit } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { PopupData } from "@/types/app";
+import { useI18n } from "@/i18n";
 
 export default function PopupWindow() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get("popup") ?? "";
+  const { dir, t } = useI18n();
 
   const [data, setData] = useState<PopupData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +20,7 @@ export default function PopupWindow() {
       const raw = localStorage.getItem(`popup:${id}`);
 
       if (!raw) {
-        setError("Popup data was not found.");
+        setError(t("errors.popupDataNotFound"));
 
         requestAnimationFrame(() => {
           getCurrentWindow().show();
@@ -44,7 +46,7 @@ export default function PopupWindow() {
         getCurrentWindow().show();
       });
     }
-  }, [id]);
+  }, [id, t]);
 
   const ui = useMemo(() => {
     switch (data?.kind) {
@@ -141,7 +143,7 @@ export default function PopupWindow() {
     }, 1000);
 
     return () => window.clearTimeout(timer);
-  }, [data, secondsLeft]);
+  }, [data, secondsLeft, send]);
 
   if (error) {
     return (
@@ -154,18 +156,18 @@ export default function PopupWindow() {
   if (!data) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-zinc-950 text-sm text-zinc-300">
-        Loading popup...
+        {t("errors.loadingPopup")}
       </div>
     );
   }
 
   const title = data.title?.trim() || data.kind;
-  const okLabel = data.okLabel?.trim() || "Yes";
-  const cancelLabel = data.cancelLabel?.trim() || "No";
+  const okLabel = data.okLabel?.trim() || t("common.yes");
+  const cancelLabel = data.cancelLabel?.trim() || t("common.no");
   const showCancel = data.isCancel ?? false;
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-zinc-900 text-white">
+    <div dir={dir} data-dir={dir} className="flex h-screen w-screen flex-col overflow-hidden bg-zinc-900 text-white">
       <div data-tauri-drag-region
       className="flex h-8 shrink-0 items-center justify-between border-b border-zinc-800 bg-zinc-950 px-3">
         <div data-tauri-drag-region className="flex min-w-0 items-center gap-2">
@@ -186,14 +188,14 @@ export default function PopupWindow() {
         </div>
 
         <div className="flex items-center gap-2 pt-3">
-          <div className="mr-auto flex h-8 min-w-0 items-center justify-start gap-1 text-left text-xs text-zinc-500">
+          <div className="me-auto flex h-8 min-w-0 items-center justify-start gap-1 text-start text-xs text-zinc-500">
             {secondsLeft !== null && (
               <>
-                <span className="shrink-0">Auto selecting</span>
+                <span className="shrink-0">{t("popup.autoSelecting")}</span>
                 <span className="shrink-0 font-semibold text-zinc-300">
                   {(data.timerTo ?? "yes") === "yes" ? okLabel : cancelLabel}
                 </span>
-                <span className="shrink-0">in</span>
+                <span className="shrink-0">{t("updates.in")}</span>
                 <span className="shrink-0 font-semibold text-zinc-300">
                   {formatTimer(secondsLeft)}
                 </span>

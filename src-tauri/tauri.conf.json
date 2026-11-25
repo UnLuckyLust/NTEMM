@@ -1,11 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "NTEMM",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "identifier": "unluckylust.ntemm",
   "build": {
     "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
+    "devUrl": "http://localhost:1415",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
@@ -16,7 +16,7 @@
         "title": "NTEMM",
         "width": 1200,
         "height": 900,
-        "minWidth": 1100,
+        "minWidth": 1110,
         "minHeight": 650,
         "center": true,
         "visible": false,
@@ -47,13 +47,12 @@
       "resources/icons/*.ico",
       "resources/binaries/7z.exe",
       "resources/binaries/7z.dll",
-      "resources/loader/loader.asi",
-      "resources/loader/loader.dll",
-      "resources/loader/subloader.dll",
-      "resources/mods/anticensor/Anticensor.asi",
-      "resources/mods/Hide_UID/Hide_UID_P.pak",
-      "resources/mods/Hide_UID/Hide_UID_P.ucas",
-      "resources/mods/Hide_UID/Hide_UID_P.utoc"
+      "resources/loader/*.asi",
+      "resources/loader/*.dll",
+      "resources/mods/anticensor/*.asi",
+      "resources/mods/Hide_UID/*.pak",
+      "resources/mods/Hide_UID/*.ucas",
+      "resources/mods/Hide_UID/*.utoc"
     ]
   },
   "plugins": {

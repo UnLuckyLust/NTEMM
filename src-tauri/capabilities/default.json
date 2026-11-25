@@ -5,6 +5,8 @@
   "windows": ["main", "popup-*"],
   "permissions": [
     "opener:default",
+    "opener:allow-open-path",
+    
     "updater:default",
     "process:default",
     

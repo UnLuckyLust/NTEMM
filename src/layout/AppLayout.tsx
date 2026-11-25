@@ -6,8 +6,10 @@ import { AppLayoutProps } from "@/interfaces/app"
 
 export default function AppLayout({
   children,
+  onOpenHome,
   onOpenSettings,
   onOpenGameBanana,
+  isHomeOpen,
   isSettingsOpen,
   isGameBananaOpen,
 }: AppLayoutProps) {
@@ -44,8 +46,10 @@ export default function AppLayout({
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         <Titlebar
+          onOpenHome={onOpenHome}
           onOpenSettings={onOpenSettings}
           onOpenGameBanana={onOpenGameBanana}
+          isHomeOpen={isHomeOpen}
           isSettingsOpen={isSettingsOpen}
           isGameBananaOpen={isGameBananaOpen}
         />

@@ -1,6 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600&family=Fredoka:wght@400;500;600;700&family=Orbitron:wght@500;600;700;800&family=Miriam+Libre:wght@400;500;600;700&family=Secular+One&family=Sora:wght@400;500;600&display=swap");
 @import "tailwindcss";
 
 @layer utilities {
@@ -22,6 +20,23 @@
 
   .font-ui {
     font-family: "Exo 2", serif;
+  }
+
+  html[lang="he"] .font-title {
+    font-family: "Secular One", sans-serif;
+    letter-spacing: 0;
+    transform: none;
+    font-weight: 400;
+  }
+
+  html[lang="he"] .font-subtitle {
+    font-family: "Fredoka", sans-serif;
+    font-weight: 600;
+  }
+
+  html[lang="he"] .font-ui {
+    font-family: "Miriam Libre", sans-serif;
+    font-weight: 500;
   }
 }
 

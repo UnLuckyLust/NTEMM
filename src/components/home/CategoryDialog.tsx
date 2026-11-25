@@ -1,3 +1,4 @@
+import { useI18n } from "@/i18n"
 export function CategoryDialog({
   isOpen,
   categoryName,
@@ -15,17 +16,19 @@ export function CategoryDialog({
   onConfirm: () => void
   onClose: () => void
 }) {
+  const { t } = useI18n()
+
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
       <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl">
-        <h2 className="text-lg font-bold">Create Category</h2>
+        <h2 className="text-lg font-bold">{t("mods.categoryDialog.title")}</h2>
 
-        <p className="mt-2 text-sm text-zinc-400">Enter a category name.</p>
+        <p className="mt-2 text-sm text-zinc-400">{t("mods.categoryDialog.description")}</p>
 
         <input
-          title="Category Name"
+          title={t("mods.categoryDialog.nameTitle")}
           value={categoryName}
           onChange={(e) => {
             onCategoryNameChange(e.target.value)
@@ -46,7 +49,7 @@ export function CategoryDialog({
             onClick={onClose}
             className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
 
           <button
@@ -54,7 +57,7 @@ export function CategoryDialog({
             disabled={!categoryName.trim()}
             className="rounded-lg bg-pink-700 px-4 py-2 text-sm text-white hover:bg-pink-600 disabled:opacity-50"
           >
-            Create
+            {t("mods.categoryDialog.create")}
           </button>
         </div>
       </div>

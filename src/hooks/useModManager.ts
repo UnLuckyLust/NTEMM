@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window"
 import { invoke } from "@tauri-apps/api/core"
 import { loaderVersions } from "@lib/config"
 import { dialog } from "@/lib/dialog";
+import { useI18n } from "@/i18n"
 import type {
   CategoryMoveDirection,
   ImportedMod,
@@ -20,9 +21,7 @@ import {
   deletePakCategory as deletePakCategoryHelper,
   getCategoryNameError,
   movePakCategory as movePakCategoryHelper,
-  movePakModToCategory as movePakModToCategoryHelper,
   renamePakCategory,
-  updateUncategorizedPakMods,
 } from "@/helpers/modCategories"
 import { getPakModsWithoutCategory, isAsiMod, isPakMod, suggestModName } from "@/helpers/modFilters"
 import {
@@ -56,6 +55,7 @@ import {
   listImportedMods,
   refreshAutoModIcons,
   removeImportedModCommand,
+  renameImportedModCommand,
   validateModPaths,
 } from "@/helpers/tauriModCommands"
 import {
@@ -67,6 +67,30 @@ import { setPakModIcon, clearPakModIcon } from "@/helpers/folderIcons"
 
 function isKnownGameVersion(version: unknown): version is GameVersion {
   return version === "global" || version === "cn" || version === "tw"
+}
+
+function moveItemBefore(list: string[], item: string, beforeItem: string | null) {
+  const withoutItem = list.filter((name) => name !== item)
+
+  if (!beforeItem) {
+    return [...withoutItem, item]
+  }
+
+  const targetIndex = withoutItem.indexOf(beforeItem)
+
+  if (targetIndex === -1) {
+    return [...withoutItem, item]
+  }
+
+  return [
+    ...withoutItem.slice(0, targetIndex),
+    item,
+    ...withoutItem.slice(targetIndex),
+  ]
+}
+
+function replaceModName(list: string[], oldName: string, newName: string) {
+  return list.map((name) => (name === oldName ? newName : name))
 }
 
 export function useModManager() {
@@ -109,7 +133,11 @@ export function useModManager() {
   const readingImportRef = useRef(false)
   const lastDropRef = useRef(0)
   const internalDragRef = useRef(false)
+  const dragScrollFrameRef = useRef<number | null>(null)
+  const dragScrollSpeedRef = useRef(0)
   const modStatusesInitializedRef = useRef(false)
+  const { t } = useI18n()
+
   const bundledInstalledRef = useRef({
     hideUidInstalled: false,
     hidePingInstalled: false,
@@ -121,10 +149,19 @@ export function useModManager() {
     [importedMods, modsView],
   )
 
-  const pakModsWithoutCategory = useMemo(
-    () => getPakModsWithoutCategory(importedMods, pakCategories),
-    [importedMods, pakCategories],
-  )
+  const pakModsWithoutCategory = useMemo(() => {
+    const uncategorizedMods = getPakModsWithoutCategory(importedMods, pakCategories)
+
+    const orderedMods = uncategorizedPakMods
+      .map((modName) => uncategorizedMods.find((mod) => mod.name === modName))
+      .filter((mod): mod is ImportedMod => Boolean(mod))
+
+    const newMods = uncategorizedMods.filter(
+      (mod) => !uncategorizedPakMods.includes(mod.name),
+    )
+
+    return [...orderedMods, ...newMods]
+  }, [importedMods, pakCategories, uncategorizedPakMods])
 
   const loadImportedMods = useCallback(async () => {
     const mods = await listImportedMods()
@@ -253,8 +290,8 @@ export function useModManager() {
 
     if (!gameFolder) {
       await dialog({
-        title: "Game Folder Missing",
-        message: "Please configure the game folder in Settings first",
+        title: t("dialogs.gameFolderMissingTitle"),
+        message: t("dialogs.configureGameFolderFirst"),
         kind: "warning",
       });
       return
@@ -268,12 +305,12 @@ export function useModManager() {
       }
     } catch (err) {
       await dialog({
-        title: "Launch Failed",
+        title: t("dialogs.launchFailedTitle"),
         message: String(err),
         kind: "error",
       });
     }
-  }, [])
+  }, [t])
 
   const toggleModSelection = useCallback((name: string) => {
     setSelectedMods((prev) =>
@@ -335,14 +372,14 @@ export function useModManager() {
       const isActive = activeMods.includes(name)
 
       const confirmed = await dialog({
-        title: "Delete Imported Mod?",
+        title: t("dialogs.deleteImportedModTitle"),
         message: isActive
-          ? `Delete "${name}" from NTEMM?\nThis mod is currently active, so its copied files will also be removed from the game folder`
-          : `Delete "${name}" from NTEMM?\nThis removes the stored source files only`,
+          ? t("dialogs.deleteImportedActiveModMessage", { name })
+          : t("dialogs.deleteImportedModMessage", { name }),
         kind: "warning",
         isCancel: true,
-        okLabel: "Delete",
-        cancelLabel: "Cancel",
+        okLabel: t("common.delete"),
+        cancelLabel: t("common.cancel"),
       });
 
       if (!confirmed.ok) return
@@ -353,8 +390,8 @@ export function useModManager() {
 
           if (!gameFolder) {
             await dialog({
-              title: "Game Folder Missing",
-              message: "This mod is active, but the game folder is not configured. Please configure it first so the copied files can be removed",
+              title: t("dialogs.gameFolderMissingTitle"),
+              message: t("dialogs.activeModRemovalNeedsGameFolder"),
               kind: "warning",
             });
             return
@@ -387,13 +424,164 @@ export function useModManager() {
         await loadModStatuses()
       } catch (err) {
         await dialog({
-          title: "Delete Failed",
+          title: t("dialogs.deleteFailedTitle"),
           message: String(err),
           kind: "error",
         });
       }
     },
-    [activeMods, loadImportedMods, loadModStatuses, pakCategories, selectedMods],
+    [activeMods, loadImportedMods, loadModStatuses, pakCategories, selectedMods, t],
+  )
+
+  const getModRenameError = useCallback(
+    (oldName: string, newName: string) => {
+      const trimmedName = newName.trim()
+
+      if (!trimmedName) {
+        return t("mods.renameErrors.empty")
+      }
+
+      if (/[<>:"/\\|?*\x00-\x1F]/.test(trimmedName)) {
+        return t("mods.renameErrors.invalid")
+      }
+
+      const hasConflict = importedMods.some(
+        (mod) =>
+          mod.name.toLowerCase() === trimmedName.toLowerCase() &&
+          mod.name.toLowerCase() !== oldName.toLowerCase(),
+      )
+
+      return hasConflict ? t("mods.renameErrors.exists") : ""
+    },
+    [importedMods, t],
+  )
+
+  const renameImportedMod = useCallback(
+    async (oldName: string, newName: string) => {
+      const renameError = getModRenameError(oldName, newName)
+
+      if (renameError) {
+        await dialog({
+          title: t("dialogs.renameFailedTitle"),
+          message: renameError,
+          kind: "error",
+        })
+
+        return null
+      }
+
+      const trimmedName = newName.trim()
+
+      if (trimmedName === oldName) {
+        return oldName
+      }
+
+      const gameFolder = getGameFolder()
+      const wasActive = activeMods.includes(oldName)
+      const wasSelected = selectedMods.includes(oldName)
+
+      if (wasActive && !gameFolder) {
+        await dialog({
+          title: t("dialogs.gameFolderMissingTitle"),
+          message: t("dialogs.activeModRenameNeedsGameFolder"),
+          kind: "warning",
+        })
+
+        return null
+      }
+
+      try {
+        const selectedWithoutOld = selectedMods.filter((name) => name !== oldName)
+
+        if (wasActive && gameFolder) {
+          const active = await applyModSelection({
+            gamePath: gameFolder,
+            selectedMods: selectedWithoutOld,
+            pakCategories,
+          })
+
+          setActiveMods(active)
+          setSelectedMods(active)
+        }
+
+        const renamedName = await renameImportedModCommand(oldName, trimmedName)
+
+        const nextPakCategories = pakCategories.map((category) => ({
+          ...category,
+          modNames: replaceModName(category.modNames, oldName, renamedName),
+        }))
+
+        const nextSelectedMods = wasSelected
+          ? [...selectedWithoutOld, renamedName]
+          : selectedWithoutOld
+
+        setPakCategories(nextPakCategories)
+        setUncategorizedPakMods((prev) => replaceModName(prev, oldName, renamedName))
+        setSelectedMods(nextSelectedMods)
+
+        setAppliedPakInstallLocationByMod((prev) => {
+          const next = { ...prev }
+
+          if (next[oldName]) {
+            next[renamedName] = next[oldName]
+            delete next[oldName]
+          }
+
+          saveAppliedPakInstallLocationByMod(
+            next,
+            isKnownGameVersion(gameVersion) ? gameVersion : null,
+          )
+
+          return next
+        })
+
+        if (wasActive && gameFolder) {
+          const active = await applyModSelection({
+            gamePath: gameFolder,
+            selectedMods: nextSelectedMods,
+            pakCategories: nextPakCategories,
+          })
+
+          setActiveMods(active)
+          setSelectedMods(active)
+
+          const appliedLocations = getAppliedPakInstallLocations(active, nextPakCategories)
+
+          setAppliedPakInstallLocationByMod(appliedLocations)
+          saveAppliedPakInstallLocationByMod(
+            appliedLocations,
+            isKnownGameVersion(gameVersion) ? gameVersion : null,
+          )
+        }
+
+        await loadImportedMods()
+        await loadModStatuses()
+
+        return renamedName
+      } catch (err) {
+        await dialog({
+          title: t("dialogs.renameFailedTitle"),
+          message: String(err),
+          kind: "error",
+        })
+
+        await loadImportedMods()
+        await loadModStatuses()
+
+        return null
+      }
+    },
+    [
+      activeMods,
+      selectedMods,
+      pakCategories,
+      gameVersion,
+      importedMods,
+      getModRenameError,
+      loadImportedMods,
+      loadModStatuses,
+      t,
+    ],
   )
 
   const confirmImport = useCallback(async () => {
@@ -403,8 +591,8 @@ export function useModManager() {
 
     if (!cleanName) {
       await dialog({
-        title: "Mod Name Required",
-        message: "Please enter a mod name",
+        title: t("dialogs.modNameRequiredTitle"),
+        message: t("dialogs.enterModNameMessage"),
         kind: "warning",
       });
       return
@@ -424,12 +612,12 @@ export function useModManager() {
 
     if (existingMod) {
       const overwriteAsk = await dialog({
-        title: "Update Existing Mod?",
-        message: `A mod named "${cleanName}" already exists\nDo you want to update it?\nThe old files will be deleted and replaced with the new import`,
+        title: t("dialogs.updateExistingModTitle"),
+        message: t("dialogs.updateExistingModMessage", { name: cleanName }),
         kind: "warning",
         isCancel: true,
-        okLabel: "Update",
-        cancelLabel: "Cancel",
+        okLabel: t("common.update"),
+        cancelLabel: t("common.cancel"),
       });
 
       overwrite = overwriteAsk.ok
@@ -458,8 +646,8 @@ export function useModManager() {
 
         if (!gameFolder) {
           await dialog({
-            title: "Game Folder Missing",
-            message: "The mod was updated in NTEMM, but the game folder is not configured so the installed game files could not be updated",
+            title: t("dialogs.gameFolderMissingTitle"),
+            message: t("dialogs.updatedModNeedsGameFolder"),
             kind: "warning",
           })
         } else {
@@ -479,14 +667,14 @@ export function useModManager() {
 
       if (result.warnings.length > 0) {
         await dialog({
-          title: "Import Warning",
+          title: t("dialogs.importWarningTitle"),
           message: result.warnings.join("\n"),
           kind: "warning",
         });
       }
     } catch (err) {
       await dialog({
-        title: "Import Failed",
+        title: t("dialogs.importFailedTitle"),
         message: String(err),
         kind: "error",
       });
@@ -505,6 +693,7 @@ export function useModManager() {
     modName,
     pakCategories,
     pendingPaths,
+    t,
   ])
 
   async function getCurrentLoaderProxyPayload(gameFolder: string) {
@@ -529,8 +718,8 @@ export function useModManager() {
 
     if (!gameFolder) {
       await dialog({
-        title: "Game Folder Missing",
-        message: "Please configure the game folder in Settings first",
+        title: t("dialogs.gameFolderMissingTitle"),
+        message: t("dialogs.configureGameFolderFirst"),
         kind: "warning",
       });
       return
@@ -546,8 +735,8 @@ export function useModManager() {
 
       if (!current.valid && proxyDllNames?.length === 0) {
         await dialog({
-          title: "Loader Name Missing",
-          message: "Select at least one loader DLL name in Settings first",
+          title: t("dialogs.loaderNameMissingTitle"),
+          message: t("dialogs.selectLoaderNameFirst"),
           kind: "warning",
         })
         return
@@ -578,40 +767,40 @@ export function useModManager() {
       }
 
       await dialog({
-        title: current.valid ? "Loader Uninstalled" : "Loader Installed",
-        message: current.valid ? "Loader files removed successfully" : "Loader files installed successfully",
+        title: current.valid ? t("dialogs.loaderUninstalledTitle") : t("dialogs.loaderInstalledTitle"),
+        message: current.valid ? t("dialogs.loaderFilesRemoved") : t("dialogs.loaderFilesInstalled"),
         kind: "success",
         timer: 10,
         timerTo: "yes"
       });
     } catch (err) {
       await dialog({
-        title: "Loader Action Failed",
+        title: t("dialogs.loaderActionFailedTitle"),
         message: String(err),
         kind: "error",
       });
     }
-  }, [])
+  }, [gameVersion, t])
 
   const cleanGameMods = useCallback(async () => {
     const gameFolder = getGameFolder()
 
     if (!gameFolder) {
       await dialog({
-        title: "Game Folder Missing",
-        message: "Please configure the game folder in Settings first",
+        title: t("dialogs.gameFolderMissingTitle"),
+        message: t("dialogs.configureGameFolderFirst"),
         kind: "warning",
       })
       return
     }
 
     const confirmed = await dialog({
-      title: "Clean Game Files?",
-      message:"This will fully clean the game folder by removing ~mods folder, all loader files, and copied ASI mod files.\nYour imported mods will stay saved in NTEMM",
+      title: t("dialogs.cleanGameFilesTitle"),
+      message: t("dialogs.cleanGameFilesMessage"),
       kind: "warning",
       isCancel: true,
-      okLabel: "Clean",
-      cancelLabel: "Cancel",
+      okLabel: t("common.clean"),
+      cancelLabel: t("common.cancel"),
     })
 
     if (!confirmed.ok) return
@@ -644,20 +833,20 @@ export function useModManager() {
       await refreshBundledMods()
 
       await dialog({
-        title: "Clean Complete",
-        message: "All files were removed from the game folder",
+        title: t("dialogs.cleanCompleteTitle"),
+        message: t("dialogs.allFilesRemoved"),
         kind: "success",
         timer: 30,
         timerTo: "yes"
       })
     } catch (err) {
       await dialog({
-        title: "Clean Failed",
+        title: t("dialogs.cleanFailedTitle"),
         message: String(err),
         kind: "error",
       })
     }
-  }, [loadModStatuses, refreshBundledMods])
+  }, [gameVersion, loadModStatuses, refreshBundledMods, t])
   
   const checkLoaderVersion = async (
     gameFolder: string,
@@ -678,12 +867,12 @@ export function useModManager() {
     if (!needsUpdate) return currentLoaderCheck
 
     const updateConfirmed = await dialog({
-      title: "Loader Update Available",
-      message: "New version of loader files available\nWould you like to update them?",
+      title: t("dialogs.loaderUpdateAvailableTitle"),
+      message: t("dialogs.loaderUpdateAvailableMessage"),
       kind: "warning",
       isCancel: true,
-      okLabel: "Update",
-      cancelLabel: "Later",
+      okLabel: t("common.update"),
+      cancelLabel: t("updates.later"),
       timer: 59,
       timerTo: "yes",
     })
@@ -702,8 +891,8 @@ export function useModManager() {
       saveStoredLoaderVersions(currentVersions, currentGameVersion)
 
       await dialog({
-        title: "Loader Update",
-        message: "Loader files updated successfully",
+        title: t("dialogs.loaderUpdateTitle"),
+        message: t("dialogs.loaderFilesUpdated"),
         kind: "success",
         timer: 10,
         timerTo: "yes",
@@ -712,8 +901,8 @@ export function useModManager() {
       removeStoredLoaderVersions(currentGameVersion)
 
       await dialog({
-        title: "Loader Update",
-        message: "Loader files faild to update",
+        title: t("dialogs.loaderUpdateTitle"),
+        message: t("dialogs.loaderFilesUpdateFailed"),
         kind: "error",
       })
     }
@@ -786,8 +975,8 @@ export function useModManager() {
 
     if (!gameFolder) {
       await dialog({
-        title: "Game Folder Missing",
-        message: "Please configure the game folder in Settings first",
+        title: t("dialogs.gameFolderMissingTitle"),
+        message: t("dialogs.configureGameFolderFirst"),
         kind: "warning",
       });
       return
@@ -802,8 +991,8 @@ export function useModManager() {
 
     if (!loaderCheck.valid) {
       await dialog({
-        title: "Loader Files Missing",
-        message: "Required loader files are missing, Install them first",
+        title: t("dialogs.loaderFilesMissingTitle"),
+        message: t("dialogs.installLoaderFilesFirst"),
         kind: "warning",
       });
       return
@@ -833,15 +1022,15 @@ export function useModManager() {
       await refreshLoaderCheck()
 
       await dialog({
-        title: "Apply Complete",
-        message: "Mod changes applied successfully",
+        title: t("dialogs.applyCompleteTitle"),
+        message: t("dialogs.modChangesApplied"),
         kind: "success",
         timer: 10,
         timerTo: "yes"
       });
     } catch (err) {
       await dialog({
-        title: "Apply Failed",
+        title: t("dialogs.applyFailedTitle"),
         message: String(err),
         kind: "error",
       });
@@ -855,6 +1044,7 @@ export function useModManager() {
     anticensorSelected,
     refreshBundledMods,
     refreshLoaderCheck,
+    t,
   ])
 
   const addPakCategory = useCallback(() => {
@@ -890,14 +1080,14 @@ export function useModManager() {
       setPakCategories((prev) =>
         prev.map((category) =>
           category.id === categoryId
-            ? { ...category, name: lastValidCategoryNames[categoryId] ?? "Unnamed Category" }
+            ? { ...category, name: lastValidCategoryNames[categoryId] ?? t("mods.category.unnamed") }
             : category,
         ),
       )
 
       setCategoryNameErrors((prev) => ({ ...prev, [categoryId]: "" }))
     },
-    [lastValidCategoryNames],
+    [lastValidCategoryNames, t],
   )
 
   const movePakCategory = useCallback((categoryId: string, direction: CategoryMoveDirection) => {
@@ -908,9 +1098,50 @@ export function useModManager() {
     setPakCategories((prev) => deletePakCategoryHelper(prev, categoryId))
   }, [])
 
-  const movePakModToCategory = useCallback((modName: string, categoryId: string | null) => {
-    setPakCategories((prev) => movePakModToCategoryHelper(prev, modName, categoryId))
-    setUncategorizedPakMods((prev) => updateUncategorizedPakMods(prev, modName, categoryId))
+  const movePakModDragOver = useCallback(
+    (targetCategoryId: string, targetModName: string | null) => {
+      if (!draggedPakModName) return
+      if (draggedPakModName === targetModName) return
+
+      setPakCategories((prev) => {
+        const withoutDragged = prev.map((category) => ({
+          ...category,
+          modNames: category.modNames.filter((modName) => modName !== draggedPakModName),
+        }))
+
+        if (targetCategoryId === "uncategorized") {
+          return withoutDragged
+        }
+
+        return withoutDragged.map((category) => {
+          if (category.id !== targetCategoryId) return category
+
+          return {
+            ...category,
+            modNames: moveItemBefore(category.modNames, draggedPakModName, targetModName),
+          }
+        })
+      })
+
+      setUncategorizedPakMods((prev) => {
+        const withoutDragged = prev.filter((modName) => modName !== draggedPakModName)
+
+        if (targetCategoryId !== "uncategorized") {
+          return withoutDragged
+        }
+
+        return moveItemBefore(prev, draggedPakModName, targetModName)
+      })
+    },
+    [draggedPakModName],
+  )
+
+  const endPakDrag = useCallback(() => {
+    const preview = document.getElementById("drag-preview")
+    preview?.classList.add("hidden")
+
+    setDraggedPakModName(null)
+    internalDragRef.current = false
   }, [])
 
   const toggleUncategorizedCollapsed = useCallback(() => {
@@ -940,7 +1171,7 @@ export function useModManager() {
         multiple: false,
         filters: [
           {
-            name: "Images",
+            name: t("mods.filePicker.images"),
             extensions: ["ico", "png", "jpg", "jpeg", "webp", "bmp"],
           },
         ],
@@ -968,13 +1199,13 @@ export function useModManager() {
         }
       } catch (err) {
         await dialog({
-          title: "Icon Change Failed",
+          title: t("dialogs.iconChangeFailedTitle"),
           message: String(err),
           kind: "error",
         });
       }
     },
-    [loadImportedMods],
+    [loadImportedMods, pakCategories, selectedMods, loadModStatuses, t],
   )
 
   const clearPakModIconForMod = useCallback(
@@ -1036,7 +1267,7 @@ export function useModManager() {
 
             if (result.warnings.length > 0) {
               await dialog({
-                title: "Import Warning",
+                title: t("dialogs.importWarningTitle"),
                 message: result.warnings.join("\n"),
                 kind: "warning",
               })
@@ -1056,7 +1287,7 @@ export function useModManager() {
         setIsReadingImport(false)
       }
     },
-    [loadImportedMods],
+    [loadImportedMods, pakCategories, selectedMods, loadModStatuses, t],
   )
 
   const openImportFilePicker = useCallback(async () => {
@@ -1066,7 +1297,7 @@ export function useModManager() {
       multiple: true,
       filters: [
         {
-          name: "Supported Mod Files",
+          name: t("mods.filePicker.supportedModFiles"),
           extensions: ["zip", "rar", "7z", "asi", "ini", "pak", "ucas", "utoc"],
         },
       ],
@@ -1084,14 +1315,14 @@ export function useModManager() {
       await importDroppedPaths(paths)
     } catch (err) {
       await dialog({
-        title: "Invalid Mod Files",
+        title: t("dialogs.invalidModFilesTitle"),
         message: String(err),
         kind: "warning",
       })
     } finally {
       validatingDropRef.current = false
     }
-  }, [importDroppedPaths])
+  }, [importDroppedPaths, t])
 
   const openImportFolderPicker = useCallback(async () => {
     if (importingRef.current || validatingDropRef.current || readingImportRef.current) return
@@ -1113,14 +1344,14 @@ export function useModManager() {
       await importDroppedPaths(paths)
     } catch (err) {
       await dialog({
-        title: "Invalid Mod Folder",
+        title: t("dialogs.invalidModFolderTitle"),
         message: String(err),
         kind: "warning",
       })
     } finally {
       validatingDropRef.current = false
     }
-  }, [importDroppedPaths])
+  }, [importDroppedPaths, t])
 
   useEffect(() => {
     invoke<boolean>("is_app_elevated")
@@ -1188,7 +1419,7 @@ export function useModManager() {
             await importDroppedPaths(payload.paths)
           } catch (err) {
             await dialog({
-              title: "Invalid Mod Files",
+              title: t("dialogs.invalidModFilesTitle"),
               message: String(err),
               kind: "warning",
             });
@@ -1204,7 +1435,7 @@ export function useModManager() {
     return () => {
       unlisten?.()
     }
-  }, [importDroppedPaths, refreshDetectedState])
+  }, [importDroppedPaths, refreshDetectedState, t])
 
   useEffect(() => {
     function onVisibilityChange() {
@@ -1237,6 +1468,75 @@ export function useModManager() {
   useEffect(() => {
     if (!draggedPakModName) return
 
+    function stopDragAutoScroll() {
+      dragScrollSpeedRef.current = 0
+
+      if (dragScrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(dragScrollFrameRef.current)
+        dragScrollFrameRef.current = null
+      }
+    }
+
+    function runDragAutoScroll(scrollElement: HTMLElement) {
+      if (dragScrollFrameRef.current !== null) return
+
+      const scroll = () => {
+        if (!dragScrollSpeedRef.current) {
+          dragScrollFrameRef.current = null
+          return
+        }
+
+        scrollElement.scrollBy({
+          top: dragScrollSpeedRef.current,
+          behavior: "auto",
+        })
+
+        dragScrollFrameRef.current = window.requestAnimationFrame(scroll)
+      }
+
+      dragScrollFrameRef.current = window.requestAnimationFrame(scroll)
+    }
+
+    function updateDragAutoScroll(clientY: number) {
+      const scrollElement = document.querySelector("[data-pak-mods-scroll]") as HTMLElement | null
+
+      if (!scrollElement) {
+        stopDragAutoScroll()
+        return
+      }
+
+      const rect = scrollElement.getBoundingClientRect()
+      const edgeSize = 90
+      const minSpeed = 1
+      const maxSpeed = 4
+
+      if (clientY < rect.top + edgeSize) {
+        const distanceToEdge = Math.max(0, clientY - rect.top)
+        const strength = 1 - distanceToEdge / edgeSize
+
+        dragScrollSpeedRef.current = -Math.round(
+          minSpeed + (maxSpeed - minSpeed) * strength,
+        )
+
+        runDragAutoScroll(scrollElement)
+        return
+      }
+
+      if (clientY > rect.bottom - edgeSize) {
+        const distanceToEdge = Math.max(0, rect.bottom - clientY)
+        const strength = 1 - distanceToEdge / edgeSize
+
+        dragScrollSpeedRef.current = Math.round(
+          minSpeed + (maxSpeed - minSpeed) * strength,
+        )
+
+        runDragAutoScroll(scrollElement)
+        return
+      }
+
+      stopDragAutoScroll()
+    }
+
     function onPointerMove(e: PointerEvent) {
       const preview = document.getElementById("drag-preview")
 
@@ -1245,26 +1545,13 @@ export function useModManager() {
         preview.style.top = `${e.clientY}px`
         preview.classList.remove("hidden")
       }
+
+      updateDragAutoScroll(e.clientY)
     }
 
-    function onPointerUp(e: PointerEvent) {
-      const target = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
-      const dropZone = target?.closest("[data-pak-category-id]") as HTMLElement | null
-
-      if (dropZone && draggedPakModName) {
-        const categoryId = dropZone.dataset.pakCategoryId
-
-        movePakModToCategory(
-          draggedPakModName,
-          categoryId === "uncategorized" ? null : categoryId ?? null,
-        )
-      }
-
-      const preview = document.getElementById("drag-preview")
-      preview?.classList.add("hidden")
-
-      setDraggedPakModName(null)
-      internalDragRef.current = false
+    function onPointerUp() {
+      stopDragAutoScroll()
+      endPakDrag()
     }
 
     document.addEventListener("pointermove", onPointerMove, true)
@@ -1273,8 +1560,9 @@ export function useModManager() {
     return () => {
       document.removeEventListener("pointermove", onPointerMove, true)
       document.removeEventListener("pointerup", onPointerUp, true)
+      stopDragAutoScroll()
     }
-  }, [draggedPakModName, movePakModToCategory])
+  }, [draggedPakModName, endPakDrag])
 
   return {
     state: {
@@ -1323,6 +1611,8 @@ export function useModManager() {
       toggleModSelection,
       getModStatus,
       removeImportedMod,
+      renameImportedMod,
+      getModRenameError,
       confirmImport,
       addPakCategory,
       updatePakCategoryName,
@@ -1332,6 +1622,8 @@ export function useModManager() {
       toggleUncategorizedCollapsed,
       togglePakCategoryCollapsed,
       beginInternalPakDrag,
+      movePakModDragOver,
+      endPakDrag,
       changePakModIcon,
       clearPakModIconForMod,
       closeImportDialog,

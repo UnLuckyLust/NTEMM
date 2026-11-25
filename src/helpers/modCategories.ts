@@ -1,3 +1,4 @@
+import { translate } from "@/i18n"
 import type { CategoryMoveDirection, ModCategory } from "@/types/modManager"
 
 export function getCategoryNameError(
@@ -7,7 +8,7 @@ export function getCategoryNameError(
 ) {
   const trimmed = name.trim()
 
-  if (!trimmed) return "Category name cannot be empty"
+  if (!trimmed) return translate("mods.categoryDialog.nameEmpty")
 
   const alreadyExists = categories.some(
     (category) =>
@@ -15,7 +16,7 @@ export function getCategoryNameError(
       category.name.trim().toLowerCase() === trimmed.toLowerCase(),
   )
 
-  if (alreadyExists) return "Category name already exists"
+  if (alreadyExists) return translate("mods.categoryDialog.nameExists")
 
   return ""
 }
@@ -59,29 +60,6 @@ export function movePakCategory(
 
 export function deletePakCategory(categories: ModCategory[], categoryId: string) {
   return categories.filter((category) => category.id !== categoryId)
-}
-
-export function movePakModToCategory(
-  categories: ModCategory[],
-  modName: string,
-  categoryId: string | null,
-) {
-  return categories.map((category) => ({
-    ...category,
-    modNames:
-      category.id === categoryId
-        ? [...new Set([...category.modNames, modName])]
-        : category.modNames.filter((name) => name !== modName),
-  }))
-}
-
-export function updateUncategorizedPakMods(
-  uncategorizedPakMods: string[],
-  modName: string,
-  categoryId: string | null,
-) {
-  const withoutMod = uncategorizedPakMods.filter((name) => name !== modName)
-  return categoryId === null ? [...new Set([...withoutMod, modName])] : withoutMod
 }
 
 export function getPakInstallLocationForMod(categories: ModCategory[], modName: string) {

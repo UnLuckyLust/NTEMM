@@ -1,10 +1,10 @@
 {
   "version": "1.3.1",
   "notes": "NTEMM v1.3.1\n\n- Improved saved mods and loader state handling per game version.\n- Fixed clean, reset, and remove actions to affect only the active game version.\n- Fixed applied mod tracking when switching between Global, CN, and TW.\n- Fixed unnecessary loader update prompts for unrelated game versions.",
-  "pub_date": "2026-05-29T14:34:44.508Z",
+  "pub_date": "2026-06-01T10:53:27.221Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUeDVHeGIxQktqSUFLTzN4VE9wMUI2UXd0U0p4N2J6S2poTHJTQVFiam8yMytKZEpJQ0Fxd1R3cW9BdEJnZ1dRdm8wTGV2K3RBSUdzMU5jeUQ4Sy94SEl3T3NJTnVYZHdvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMDY1MjgyCWZpbGU6TlRFTU1fMS4zLjFfeDY0LXNldHVwLmV4ZQpyQytCdDN1d2NrenlmR0t3UDJxR0JjVFU0YWpkeFA2MXFhc01jeVQ1OVhkeWo1NjFhR0NuTzVRbW00TjA4V1ZYbmxGbUwwZ3pYTkxRYjN6Ums5NjBCUT09Cg==",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUeDVHeGIxQktqSU95SCtBNUhMNnJYTjVZUnpoL2l4dkFjSlBscUdodnJTbndrSThTNUNNU2M4VDJBejNGcGRpZGNkWlNQSE4wRjdJdHpBVXVYU24rTktnbC9rUmI4RFE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMzExMjA1CWZpbGU6TlRFTU1fMS4zLjFfeDY0LXNldHVwLmV4ZQpHNnpTUjZqbENtNDVKeUVHczM4cC96d3Z0MUpRTHVuYk1qd0g1ekVSVE91WEovQmdoZDQrV2hBUjRvTzFjUmtEU2FIeWZPS3dlSGNQTHg5aFVwNGNBZz09Cg==",
       "url": "https://github.com/UnLuckyLust/NTEMM/releases/download/v1.3.1/NTEMM_1.3.1_x64-setup.exe"
     }
   }

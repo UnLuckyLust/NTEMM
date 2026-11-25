@@ -1,5 +1,6 @@
 import type { ModUiStatus } from "@/types/modManager"
 
+import { useI18n } from "@/i18n"
 function getStatusClassName(status: ModUiStatus) {
   if (status === "Enabled") return "bg-green-950/60 text-green-300"
   if (status === "Disabled") return "bg-zinc-800 text-zinc-400"
@@ -16,23 +17,25 @@ export function AnticensorCard({
   status: ModUiStatus
   onToggle: () => void
 }) {
+  const { t } = useI18n()
+
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <div className="text-sm font-semibold text-zinc-200">
-            Anticensor
+          <div className="font-subtitle text-sm font-semibold text-zinc-200">
+            {t("mods.anticensor.title")}
             
             {(status === "Pending Enable" || status === "Pending Disable") && (
-              <span className={`ml-2 rounded-full px-2 py-0.5 text-xs ${getStatusClassName(status)}`}>
-                {status}
+              <span className={`font-ui ms-2 rounded-full px-2 py-0.5 text-xs ${getStatusClassName(status)}`}>
+                {t(`mods.status.${status}`)}
               </span>
             )}
 
-            <span className="ml-2 text-xs text-zinc-500">by cp0bi</span>
+            <span className="ms-2 text-xs text-zinc-500">{t("mods.byAuthor", { author: "cp0bi" })}</span>
           </div>
           <div className="text-xs text-zinc-500">
-            Removes transparency effect on nearby characters
+            {t("mods.anticensor.description")}
           </div>
         </div>
 
@@ -45,7 +48,7 @@ export function AnticensorCard({
                 : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
             }`}
           >
-            {selected ? "Enabled" : "Disabled"}
+            {selected ? t("mods.status.Enabled") : t("mods.status.Disabled")}
           </button>
         </div>
       </div>

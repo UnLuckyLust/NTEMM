@@ -19,7 +19,7 @@ const keys = {
   collapsedPakCategories: "collapsedPakCategories",
 } as const
 
-const gameVersions: GameVersion[] = ["global", "cn", "tw"]
+const gameVersions: GameVersion[] = ["steam", "epic", "global", "cn", "tw"]
 
 function isKnownGameVersion(version: unknown): version is GameVersion {
   return gameVersions.includes(version as GameVersion)

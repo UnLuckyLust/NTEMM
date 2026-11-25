@@ -1,7 +1,8 @@
 use std::{
     fs,
     io::{BufReader, Read},
-    path::Path,
+    path::{Path, PathBuf},
+    process::Command,
 };
 
 fn same_file_contents(source: &Path, target: &Path) -> bool {
@@ -60,17 +61,47 @@ pub fn copy_if_changed(source: &Path, target: &Path) -> Result<(), String> {
     }
 
     if let Some(parent) = target.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create {}: {e}", parent.display()))?;
+        fs::create_dir_all(parent).map_err(|_| "errors.failedCreateFolder".to_string())?;
     }
 
-    fs::copy(source, target).map_err(|e| {
-        format!(
-            "Failed to copy {} to {}: {e}",
-            source.display(),
-            target.display()
-        )
-    })?;
+    fs::copy(source, target).map_err(|_| "errors.failedCopyFile".to_string())?;
 
     Ok(())
+}
+
+pub fn open_folder_inner(path: String) -> Result<(), String> {
+    let folder = PathBuf::from(path);
+
+    if !folder.exists() {
+        fs::create_dir_all(&folder).map_err(|_| "errors.failedCreateFolder".to_string())?;
+    }
+
+    #[cfg(target_os = "windows")]
+    Command::new("explorer")
+        .arg(&folder)
+        .spawn()
+        .map_err(|_| "errors.failedOpenFolder".to_string())?;
+
+    #[cfg(target_os = "macos")]
+    Command::new("open")
+        .arg(&folder)
+        .spawn()
+        .map_err(|_| "errors.failedOpenFolder".to_string())?;
+
+    #[cfg(target_os = "linux")]
+    Command::new("xdg-open")
+        .arg(&folder)
+        .spawn()
+        .map_err(|_| "errors.failedOpenFolder".to_string())?;
+
+    Ok(())
+}
+
+pub fn get_ntemm_mods_dir_inner() -> Result<String, String> {
+    let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+    let exe_dir = exe_path
+        .parent()
+        .ok_or_else(|| "errors.failedGetAppInstallDirectory".to_string())?;
+
+    Ok(exe_dir.join("NTEMM_Mods").to_string_lossy().to_string())
 }

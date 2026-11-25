@@ -23,6 +23,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app::dialog::play_dialog_sound,
             app::elevated::is_app_elevated,
+            app::utils::open_folder,
+            app::utils::get_ntemm_mods_dir,
             game::game::auto_detect_game_folder,
             game::game::check_game_folder,
             game::game::launch_game,
@@ -39,6 +41,7 @@ pub fn run() {
             mods::import::refresh_auto_mod_icons,
             mods::manage::list_imported_mods,
             mods::manage::remove_imported_mod,
+            mods::manage::rename_imported_mod,
             mods::manage::get_active_mods,
             mods::manage::apply_mod_selection,
             mods::manage::get_mod_install_statuses,

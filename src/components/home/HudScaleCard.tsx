@@ -3,7 +3,9 @@ import { useEffect, useState } from "react"
 import type { EngineIniCheck } from "@/types/engineIni"
 import { HudScaleCardProps } from "@/interfaces/app"
 
+import { useI18n } from "@/i18n"
 export function HudScaleCard({ gamePath }: HudScaleCardProps) {
+  const { t } = useI18n()
   const [engineIniPath, setEngineIniPath] = useState("")
   const [engineIniCheck, setEngineIniCheck] = useState<EngineIniCheck | null>(null)
   const [uiScale, setUiScale] = useState(1.0)
@@ -32,7 +34,7 @@ export function HudScaleCard({ gamePath }: HudScaleCardProps) {
         valid: false,
         path: "",
         applicationScale: null,
-        message: "Game folder was not detected",
+        messageKey: "mods.hudScale.gameFolderNotDetected",
       })
       setHasLoadedEngineIni(true)
       return
@@ -59,7 +61,7 @@ export function HudScaleCard({ gamePath }: HudScaleCardProps) {
         valid: false,
         path: "",
         applicationScale: null,
-        message: "Failed to detect Engine.ini",
+        messageKey: "mods.hudScale.detectFailed",
       })
 
       setHasLoadedEngineIni(true)
@@ -84,7 +86,7 @@ export function HudScaleCard({ gamePath }: HudScaleCardProps) {
         valid: false,
         path: current?.path ?? engineIniPath,
         applicationScale: current?.applicationScale ?? null,
-        message: "Failed to save HUD scale",
+        messageKey: "mods.hudScale.saveFailed",
       }))
     }
   }
@@ -93,9 +95,9 @@ export function HudScaleCard({ gamePath }: HudScaleCardProps) {
     <section className="rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3">
       <div className="mb-3 flex items-center justify-between gap-4">
         <div>
-          <div className="text-sm font-semibold text-zinc-200">HUD Scale</div>
+          <div className="font-subtitle text-sm font-semibold text-zinc-200">{t("mods.hudScale.title")}</div>
           <div className="text-xs text-zinc-500">
-            Edits Engine.ini for the selected game version
+            {t("mods.hudScale.description")}
           </div>
         </div>
 
@@ -106,13 +108,15 @@ export function HudScaleCard({ gamePath }: HudScaleCardProps) {
               : "border-red-700 bg-red-950/40 text-red-200"
           }`}
         >
-          {engineIniCheck?.message ?? "Checking Engine.ini..."}
+          {engineIniCheck?.messageKey
+            ? t(engineIniCheck.messageKey)
+            : t("mods.hudScale.checkingEngineIni")}
         </div>
       </div>
 
       <div className="flex items-center gap-4">
         <input
-          title="UI Scale"
+          title={t("mods.hudScale.uiScaleTitle")}
           type="range"
           min="0.25"
           max="1.5"
@@ -123,7 +127,7 @@ export function HudScaleCard({ gamePath }: HudScaleCardProps) {
           className="flex-1 accent-pink-600 disabled:opacity-40"
         />
 
-        <div className="w-16 text-right text-sm font-semibold text-zinc-300">
+        <div className="w-16 text-end text-sm font-semibold text-zinc-300">
           {uiScale.toFixed(2)}
         </div>
       </div>

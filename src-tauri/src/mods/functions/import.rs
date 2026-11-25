@@ -1,4 +1,4 @@
-use serde::Serialize;
+use crate::mods::structs::{ModMetadata, SourceFile};
 use std::process::Command;
 use tauri::Manager;
 use std::ffi::OsStr;
@@ -16,23 +16,6 @@ use tauri::path::BaseDirectory;
 use walkdir::WalkDir;
 use zip::ZipArchive;
 
-use crate::mods::manage::ModMetadata;
-
-#[derive(Serialize)]
-pub struct ImportResult {
-    pub success: bool,
-    pub mod_name: String,
-    pub output_path: String,
-    pub warnings: Vec<String>,
-    pub copied_files: Vec<String>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ImportAnalysis {
-    pub suggested_name: Option<String>,
-    pub name_conflict: bool,
-}
 
 pub fn get_mod_storage_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     if let Ok(exe) = std::env::current_exe() {
@@ -73,11 +56,6 @@ pub fn is_preview_image_file_name(name: &OsStr) -> bool {
     )
 }
 
-#[derive(Clone)]
-struct SourceFile {
-    path: PathBuf,
-    relative_path: PathBuf,
-}
 
 fn is_mod_payload_file(path: &Path) -> bool {
     matches!(ext(path).as_str(), "pak" | "ucas" | "utoc" | "asi")
@@ -90,11 +68,11 @@ fn is_image_file(path: &Path) -> bool {
     )
 }
 
-fn has_mod_payload(files: &[SourceFile]) -> bool {
+pub(crate) fn has_mod_payload(files: &[SourceFile]) -> bool {
     files.iter().any(|file| is_mod_payload_file(&file.path))
 }
 
-fn validate_pak_sets(files: &[SourceFile]) -> Result<(), String> {
+pub(crate) fn validate_pak_sets(files: &[SourceFile]) -> Result<(), String> {
     let mut grouped: HashMap<PathBuf, HashSet<String>> = HashMap::new();
 
     for file in files {
@@ -144,12 +122,12 @@ fn validate_pak_sets(files: &[SourceFile]) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_ini_requires_asi(files: &[SourceFile]) -> Result<(), String> {
+pub(crate) fn validate_ini_requires_asi(files: &[SourceFile]) -> Result<(), String> {
     let has_ini = files.iter().any(|file| ext(&file.path) == "ini");
     let has_asi = files.iter().any(|file| ext(&file.path) == "asi");
 
     if has_ini && !has_asi {
-        return Err("INI files can only be imported together with an ASI file".into());
+        return Err("errors.iniRequiresAsi".into());
     }
 
     Ok(())
@@ -175,7 +153,7 @@ fn safe_relative_path(base: &Path, path: &Path) -> Option<PathBuf> {
     Some(relative)
 }
 
-fn strip_single_wrapper_folder(files: &mut [SourceFile]) {
+pub(crate) fn strip_single_wrapper_folder(files: &mut [SourceFile]) {
     let Some(first_file) = files.first() else {
         return;
     };
@@ -207,7 +185,7 @@ fn strip_single_wrapper_folder(files: &mut [SourceFile]) {
     }
 }
 
-fn collect_supported_files(root: &Path, base: &Path, out: &mut Vec<SourceFile>) {
+pub(crate) fn collect_supported_files(root: &Path, base: &Path, out: &mut Vec<SourceFile>) {
     let mut files = Vec::new();
     let mut has_asi = false;
 
@@ -245,7 +223,7 @@ fn collect_supported_files(root: &Path, base: &Path, out: &mut Vec<SourceFile>) 
     );
 }
 
-fn collect_single_supported_file(path: &Path, out: &mut Vec<SourceFile>) {
+pub(crate) fn collect_single_supported_file(path: &Path, out: &mut Vec<SourceFile>) {
     if !is_supported_file(path) {
         return;
     }
@@ -260,7 +238,7 @@ fn collect_single_supported_file(path: &Path, out: &mut Vec<SourceFile>) {
     });
 }
 
-fn is_archive(path: &Path) -> bool {
+pub(crate) fn is_archive(path: &Path) -> bool {
     matches!(ext(path).as_str(), "zip" | "rar" | "7z")
 }
 
@@ -321,17 +299,17 @@ fn extract_with_7zip(
         .arg("-y")
         .status()
         .map_err(|_| {
-            "7-Zip extractor was not found. Missing bundled 7z.exe or 7z.dll".to_string()
+            "errors.sevenZipMissing".to_string()
         })?;
 
     if !status.success() {
-        return Err("Failed to extract archive".into());
+        return Err("errors.failedExtractArchive".into());
     }
 
     Ok(())
 }
 
-fn extract_archive(
+pub(crate) fn extract_archive(
     app: &tauri::AppHandle,
     archive_path: &Path,
     output_dir: &Path,
@@ -339,93 +317,10 @@ fn extract_archive(
     match ext(archive_path).as_str() {
         "zip" => extract_zip_native(archive_path, output_dir),
         "rar" | "7z" => extract_with_7zip(app, archive_path, output_dir),
-        _ => Err("Unsupported archive format".into()),
+        _ => Err("errors.unsupportedArchiveFormat".into()),
     }
 }
 
-#[tauri::command(rename_all = "camelCase")]
-pub async fn analyze_import_paths(
-    app: tauri::AppHandle,
-    paths: Vec<String>,
-) -> Result<ImportAnalysis, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        if paths.is_empty() {
-            return Err("No files were dropped".into());
-        }
-
-        let storage_root = get_mod_storage_root(&app)?;
-
-        let temp_dir = std::env::temp_dir().join(format!("NTEMM_analyze_import_{}", uuid::Uuid::new_v4()));
-
-        if temp_dir.exists() {
-            let _ = fs::remove_dir_all(&temp_dir);
-        }
-
-        fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
-
-        let mut source_files = Vec::new();
-
-        for raw in &paths {
-            let path = PathBuf::from(raw);
-
-            if path.is_dir() {
-                collect_supported_files(&path, &path, &mut source_files);
-                continue;
-            }
-
-            if is_archive(&path) {
-                extract_archive(&app, &path, &temp_dir)?;
-
-                let before_count = source_files.len();
-                collect_supported_files(&temp_dir, &temp_dir, &mut source_files);
-                strip_single_wrapper_folder(&mut source_files[before_count..]);
-                continue;
-            }
-
-            collect_single_supported_file(&path, &mut source_files);
-        }
-
-        if source_files.is_empty() {
-            let _ = fs::remove_dir_all(&temp_dir);
-            return Err("No supported mod files found. Supports ZIP/RAR/7Z, folders, ASI mods, and complete PAK + UCAS + UTOC sets".into());
-        }
-
-        if !has_mod_payload(&source_files) {
-            let _ = fs::remove_dir_all(&temp_dir);
-            return Err("No mod files found. Preview images must be imported together with PAK or ASI mod files".into());
-        }
-
-        validate_pak_sets(&source_files)?;
-        validate_ini_requires_asi(&source_files)?;
-
-        let suggested_name = source_files
-            .iter()
-            .find(|file| {
-                file.path
-                    .file_name()
-                    .map(|name| name.to_string_lossy().eq_ignore_ascii_case("mod.json"))
-                    .unwrap_or(false)
-            })
-            .and_then(|file| fs::read_to_string(&file.path).ok())
-            .and_then(|content| serde_json::from_str::<ModMetadata>(&content).ok())
-            .and_then(|metadata| metadata.name)
-            .map(|name| sanitize_filename::sanitize(name.trim()));
-
-        let name_conflict = suggested_name
-            .as_ref()
-            .map(|name| storage_root.join(name).exists())
-            .unwrap_or(false);
-
-        let _ = fs::remove_dir_all(&temp_dir);
-
-        Ok(ImportAnalysis {
-            suggested_name,
-            name_conflict,
-        })
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
 
 fn compact_match_text(value: &str) -> String {
     value
@@ -498,7 +393,7 @@ fn find_matching_bundled_icon(
         .map(|(_, path)| path))
 }
 
-fn auto_apply_known_mod_icon(
+pub(crate) fn auto_apply_known_mod_icon(
     app: &tauri::AppHandle,
     output_dir: &Path,
     mod_name: &str,
@@ -567,7 +462,7 @@ fn stored_mod_file_names(mod_dir: &Path) -> Result<Vec<String>, String> {
     Ok(files)
 }
 
-fn refresh_auto_mod_icons_inner(app: &tauri::AppHandle) -> Result<u32, String> {
+pub(crate) fn refresh_auto_mod_icons_inner(app: &tauri::AppHandle) -> Result<u32, String> {
     let storage_root = get_mod_storage_root(app)?;
 
     if !storage_root.exists() || !storage_root.is_dir() {
@@ -611,170 +506,4 @@ fn refresh_auto_mod_icons_inner(app: &tauri::AppHandle) -> Result<u32, String> {
     }
 
     Ok(applied_count)
-}
-
-#[tauri::command]
-pub async fn refresh_auto_mod_icons(app: tauri::AppHandle) -> Result<u32, String> {
-    tauri::async_runtime::spawn_blocking(move || refresh_auto_mod_icons_inner(&app))
-        .await
-        .map_err(|e| e.to_string())?
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn import_mod_paths(
-    app: tauri::AppHandle,
-    paths: Vec<String>,
-    mod_name: String,
-    overwrite: bool,
-) -> Result<ImportResult, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        if paths.is_empty() {
-            return Err("No files were dropped".into());
-        }
-
-        let storage_root = get_mod_storage_root(&app)?;
-        fs::create_dir_all(&storage_root).map_err(|e| e.to_string())?;
-
-        let mod_name = sanitize_filename::sanitize(mod_name.trim());
-
-        if mod_name.is_empty() {
-            return Err("Mod name cannot be empty".into());
-        }
-
-        let output_dir = storage_root.join(&mod_name);
-
-        if output_dir.exists() {
-            if !overwrite {
-                return Err("A mod with this name already exists".into());
-            }
-
-            fs::remove_dir_all(&output_dir).map_err(|e| e.to_string())?;
-        }
-
-        fs::create_dir_all(&output_dir).map_err(|e| e.to_string())?;
-
-        let temp_dir = output_dir.join("_temp_extract");
-        let mut source_files = Vec::new();
-
-        for raw in paths {
-            let path = PathBuf::from(raw);
-
-            if path.is_dir() {
-                collect_supported_files(&path, &path, &mut source_files);
-                continue;
-            }
-
-            if is_archive(&path) {
-                fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
-                extract_archive(&app, &path, &temp_dir)?;
-
-                let before_count = source_files.len();
-                collect_supported_files(&temp_dir, &temp_dir, &mut source_files);
-                strip_single_wrapper_folder(&mut source_files[before_count..]);
-                continue;
-            }
-
-            collect_single_supported_file(&path, &mut source_files);
-        }
-
-        if source_files.is_empty() {
-            return Err("No supported mod files found. Supports ZIP/RAR/7Z, folders, ASI mods, and complete PAK + UCAS + UTOC sets".into());
-        }
-
-        if !has_mod_payload(&source_files) {
-            return Err("No mod files found. Preview images must be imported together with PAK or ASI mod files".into());
-        }
-
-        validate_pak_sets(&source_files)?;
-        validate_ini_requires_asi(&source_files)?;
-
-        let mut copied_files = Vec::new();
-
-        for file in source_files {
-            let dest = output_dir.join(&file.relative_path);
-
-            if let Some(parent) = dest.parent() {
-                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-            }
-
-            fs::copy(&file.path, &dest).map_err(|e| e.to_string())?;
-
-            copied_files.push(file.relative_path.to_string_lossy().to_string());
-        }
-
-        if temp_dir.exists() {
-            let _ = fs::remove_dir_all(&temp_dir);
-        }
-
-        let mut warnings = Vec::new();
-
-        if let Err(err) = auto_apply_known_mod_icon(&app, &output_dir, &mod_name, &copied_files) {
-            warnings.push(format!("Auto icon detection failed: {err}"));
-        }
-
-        Ok(ImportResult {
-            success: true,
-            mod_name,
-            output_path: output_dir.to_string_lossy().to_string(),
-            warnings,
-            copied_files,
-        })
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn validate_mod_paths(app: tauri::AppHandle, paths: Vec<String>) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        if paths.is_empty() {
-            return Err("No files were dropped".into());
-        }
-
-        let mut source_files = Vec::new();
-
-        for raw in paths {
-            let path = PathBuf::from(raw);
-
-            if path.is_dir() {
-                collect_supported_files(&path, &path, &mut source_files);
-                continue;
-            }
-
-            if is_archive(&path) {
-                let temp_dir = std::env::temp_dir().join(format!("NTEMM_validate_archive_{}", uuid::Uuid::new_v4()));
-
-                if temp_dir.exists() {
-                    let _ = fs::remove_dir_all(&temp_dir);
-                }
-
-                fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
-                extract_archive(&app, &path, &temp_dir)?;
-
-                let before_count = source_files.len();
-                collect_supported_files(&temp_dir, &temp_dir, &mut source_files);
-                strip_single_wrapper_folder(&mut source_files[before_count..]);
-
-                let _ = fs::remove_dir_all(&temp_dir);
-                continue;
-            }
-
-            collect_single_supported_file(&path, &mut source_files);
-        }
-
-        if source_files.is_empty() {
-            return Err("No supported mod files found. Supports ZIP/RAR/7Z, folders, ASI mods, and complete PAK + UCAS + UTOC sets".into());
-        }
-
-        if !has_mod_payload(&source_files) {
-            return Err("No mod files found. Preview images must be imported together with PAK or ASI mod files".into());
-        }
-
-        validate_pak_sets(&source_files)?;
-        validate_ini_requires_asi(&source_files)?;
-
-        Ok(())
-    })
-    .await
-    .map_err(|e| e.to_string())?
 }

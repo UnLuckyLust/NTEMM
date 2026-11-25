@@ -1,20 +1,25 @@
+import { translate } from "@/i18n"
 import type { GameVersion, LoaderProxyConfig, LoaderProxyEntry } from "@/types/modManager"
 
 export const LOADER_PROXY_CONFIG_KEY = "loaderProxyConfig"
 export const KNOWN_LOADER_PROXY_NAMES_KEY = "knownLoaderProxyNames"
 
 export const MAX_CUSTOM_LOADER_PROXY_NAMES: Record<GameVersion, number> = {
+  steam: 8,
+  epic: 8,
   global: 8,
   tw: 8,
   cn: 7,
 }
 export const DEFAULT_LOADER_PROXY_NAMES: Record<GameVersion, string[]> = {
+  steam: ["version.dll"],
+  epic: ["version.dll"],
   global: ["version.dll"],
   cn: ["dsound.dll", "dinput8.dll"],
   tw: ["version.dll"],
 }
 
-const GAME_VERSIONS: GameVersion[] = ["global", "cn", "tw"]
+const GAME_VERSIONS: GameVersion[] = ["steam", "epic", "global", "cn", "tw"]
 
 function normalizeDllName(name: string) {
   return name.trim().replace(/^[/\\]+/, "")
@@ -33,6 +38,16 @@ export function isValidLoaderProxyName(name: string) {
 
 export function createDefaultLoaderProxyConfig(): LoaderProxyConfig {
   return {
+    steam: DEFAULT_LOADER_PROXY_NAMES.steam.map((name) => ({
+      name,
+      custom: false,
+      enabled: true,
+    })),
+    epic: DEFAULT_LOADER_PROXY_NAMES.epic.map((name) => ({
+      name,
+      custom: false,
+      enabled: true,
+    })),
     global: DEFAULT_LOADER_PROXY_NAMES.global.map((name) => ({
       name,
       custom: false,
@@ -187,7 +202,10 @@ export function getLoaderProxyConfigError(config: LoaderProxyConfig) {
     const maxCustomNames = MAX_CUSTOM_LOADER_PROXY_NAMES[version]
 
     if (customCount > maxCustomNames) {
-      return `${version.toUpperCase()} can only have up to ${maxCustomNames} custom loader names`
+      return translate("settings.loaderProxyErrors.maxCustomNames", {
+        version: version.toUpperCase(),
+        count: maxCustomNames,
+      })
     }
 
     for (const entry of config[version]) {
@@ -195,11 +213,16 @@ export function getLoaderProxyConfigError(config: LoaderProxyConfig) {
       const key = name.toLowerCase()
 
       if (!isValidLoaderProxyName(name)) {
-        return `${version.toUpperCase()} has an invalid loader name`
+        return translate("settings.loaderProxyErrors.invalidName", {
+          version: version.toUpperCase(),
+        })
       }
 
       if (seen.has(key)) {
-        return `${version.toUpperCase()} has a duplicated loader name: ${name}`
+        return translate("settings.loaderProxyErrors.duplicatedName", {
+          version: version.toUpperCase(),
+          name,
+        })
       }
 
       seen.add(key)

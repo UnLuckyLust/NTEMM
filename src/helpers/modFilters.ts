@@ -1,10 +1,11 @@
+import { translate } from "@/i18n"
 import type { ImportedMod, ModCategory } from "@/types/modManager"
 
 export function suggestModName(paths: string[]) {
   if (paths.length === 0) return ""
 
   const first = paths[0]
-  const fileName = first.split(/[\\/]/).pop() ?? "Imported Mod"
+  const fileName = first.split(/[\\/]/).pop() ?? translate("mods.importDialog.defaultName")
 
   return fileName.replace(/\.(zip|rar|7z|pak|ucas|utoc|asi|ini|dll)$/i, "")
 }
